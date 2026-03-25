@@ -1,0 +1,51 @@
+{
+  "name": "haredi-widgets",
+  "version": "1.5.0",
+  "description": "ווידג'טים בסגנון Windows 11 עם חדשות חרדיות",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.haredi.widgets",
+    "productName": "Widgets-NF",
+    "artifactName": "Widgets.NF.Setup.${version}.${ext}",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "language": "1037",
+      "installerLanguages": ["he"],
+      "shortcutName": "ווידגטים"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app.js",
+      "index.html",
+      "launcher.html",
+      "style.css",
+      "icon.ico",
+      "*.png",
+      "package.json",
+      "node_modules/**"
+    ],
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "dependencies": {
+    "@hebcal/core": "^5.10.1",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "jimp": "^1.6.0",
+    "png-to-ico": "^3.0.1"
+  }
+}

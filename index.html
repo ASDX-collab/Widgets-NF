@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ווידג'טים</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="panel" id="panel">
+
+  <!-- HEADER -->
+  <div class="panel-header">
+    <span class="panel-title">ווידג'טים</span>
+    <div class="header-actions">
+      <button class="icon-btn" id="libraryBtn" title="ספריית ווידג'טים"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></button>
+      <button class="icon-btn" id="themeBtn" title="ערכת צבעים">
+        <svg id="iconMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <svg id="iconSun" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      </button>
+      <button class="icon-btn" id="refreshBtn" title="רענן">↻</button>
+      <button class="icon-btn" id="settingsBtn" title="הגדרות">⚙</button>
+      <button class="icon-btn close-btn" id="closeBtn" title="סגור">✕</button>
+    </div>
+  </div>
+
+  <div class="scroll-area" id="mainScroll">
+
+    <!-- LEFT COL: clock + weather + zmanim -->
+    <div class="left-col" id="leftCol">
+
+      <!-- CLOCK (first!) -->
+      <div class="widget" id="clockWidget">
+        <div class="widget-header" data-target="clockBody">
+          <div class="widget-label">🕐 שעון</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="clockBody">
+          <div class="clock-time" id="clockTime">00:00:00</div>
+          <div class="clock-date" id="clockDate"></div>
+          <div class="clock-hebrew" id="clockHeb"></div>
+        </div>
+      </div>
+
+      <!-- WEATHER -->
+      <div class="widget" id="weatherWidget">
+        <div class="widget-header" data-target="weatherBody">
+          <div class="widget-label">🌤️ מזג אוויר</div>
+          <div class="widget-header-right">
+            <span class="location" id="locationName">מזהה מיקום...</span>
+            <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+          </div>
+        </div>
+        <div class="widget-body" id="weatherBody">
+          <div class="weather-main">
+            <div class="weather-icon-wrap"><span class="weather-icon" id="wIcon">⏳</span></div>
+            <div class="weather-temps">
+              <div class="weather-temp" id="wTemp">--°</div>
+              <div class="weather-desc" id="wDesc">טוען...</div>
+            </div>
+          </div>
+          <div class="weather-details">
+            <div class="wd-pill">💧 <span id="wHumid">--</span>%</div>
+            <div class="wd-pill">🌡️ מרגיש <span id="wFeels">--</span>°</div>
+            <div class="wd-pill">💨 <span id="wWind">--</span> קמ"ש</div>
+          </div>
+          <div class="forecast" id="forecast"></div>
+        </div>
+      </div>
+
+      <!-- ZMANIM -->
+      <div class="widget hidden" id="zmanimWidget">
+        <div class="widget-header" data-target="zmanimBody">
+          <div class="widget-label">🕍 זמני היום</div>
+          <div class="widget-header-right">
+            <span class="location" id="zmanimDate"></span>
+            <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+          </div>
+        </div>
+        <div class="widget-body" id="zmanimBody">
+          <div class="zmanim-loading" id="zmanimLoading"><div class="spinner-sm"></div> טוען זמנים...</div>
+          <div class="zmanim-grid" id="zmanimGrid"></div>
+          <div class="shabbat-box hidden" id="shabbatBox">
+            <div class="shabbat-title">🕯️ שבת</div>
+            <div class="shabbat-times" id="shabbatTimes"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALCULATOR -->
+      <div class="widget hidden" id="calcWidget">
+        <div class="widget-header" data-target="calcBody">
+          <div class="widget-label">🧮 מחשבון</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="calcBody">
+          <div class="calc-display" id="calcDisplay">0</div>
+          <div class="calc-grid">
+            <button class="calc-btn btn-top" data-c="C">C</button>
+            <button class="calc-btn btn-top" data-c="+-">±</button>
+            <button class="calc-btn btn-top" data-c="%">%</button>
+            <button class="calc-btn btn-op" data-c="/">÷</button>
+            <button class="calc-btn" data-c="7">7</button>
+            <button class="calc-btn" data-c="8">8</button>
+            <button class="calc-btn" data-c="9">9</button>
+            <button class="calc-btn btn-op" data-c="*">×</button>
+            <button class="calc-btn" data-c="4">4</button>
+            <button class="calc-btn" data-c="5">5</button>
+            <button class="calc-btn" data-c="6">6</button>
+            <button class="calc-btn btn-op" data-c="-">−</button>
+            <button class="calc-btn" data-c="1">1</button>
+            <button class="calc-btn" data-c="2">2</button>
+            <button class="calc-btn" data-c="3">3</button>
+            <button class="calc-btn btn-op" data-c="+">+</button>
+            <button class="calc-btn zero" data-c="0">0</button>
+            <button class="calc-btn" data-c=".">.</button>
+            <button class="calc-btn btn-op" data-c="=">=</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMER -->
+      <div class="widget hidden" id="timerWidget">
+        <div class="widget-header" data-target="timerBody">
+          <div class="widget-label">⏱️ טיימר</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="timerBody">
+          <div class="timer-display" id="timerDisplay">00:00:00</div>
+          <div class="timer-controls">
+            <button class="timer-btn" id="timerStart">התחל</button>
+            <button class="timer-btn" id="timerPause">השהה</button>
+            <button class="timer-btn" id="timerReset">אפס</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOREX -->
+      <div class="widget hidden" id="forexWidget">
+        <div class="widget-header" data-target="forexBody">
+          <div class="widget-label">💵 שערי מטבע</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="forexBody">
+          <div class="forex-loading" id="forexLoading"><div class="spinner-sm"></div> טוען שערים...</div>
+          <div class="forex-list" id="forexList"></div>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="widget hidden" id="notesWidget">
+        <div class="widget-header" data-target="notesBody">
+          <div class="widget-label">📝 פתקים</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="notesBody">
+          <textarea class="notes-textarea" id="notesArea" placeholder="הקלד כאן..."></textarea>
+        </div>
+      </div>
+
+      <!-- WORLD CLOCK -->
+      <div class="widget hidden" id="worldClockWidget">
+        <div class="widget-header" data-target="worldClockBody">
+          <div class="widget-label">🌍 שעון עולמי</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="worldClockBody">
+          <div class="wc-grid">
+            <div class="wc-item"><div class="wc-city">ניו יורק</div><div class="wc-time" id="wcNY">--:--</div></div>
+            <div class="wc-item"><div class="wc-city">לונדון</div><div class="wc-time" id="wcLon">--:--</div></div>
+            <div class="wc-item"><div class="wc-city">טוקיו</div><div class="wc-time" id="wcTok">--:--</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="widget hidden" id="calendarWidget">
+        <div class="widget-header" data-target="calendarBody">
+          <div class="widget-label">📅 לוח שנה</div>
+          <div class="widget-header-right">
+            <button class="cal-nav-btn" id="calPrev">&#8249;</button>
+            <span class="location" id="calMonthYear"></span>
+            <button class="cal-nav-btn" id="calNext">&#8250;</button>
+            <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+          </div>
+        </div>
+        <div class="widget-body" id="calendarBody">
+          <div class="cal-grid-head"><span>א'</span><span>ב'</span><span>ג'</span><span>ד'</span><span>ה'</span><span>ו'</span><span>ש'</span></div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+      </div>
+
+      <!-- MULTI-NOTES -->
+      <div class="widget hidden" id="multiNotesWidget">
+        <div class="widget-header" data-target="multiNotesBody">
+          <div class="widget-label">📌 פתקים</div>
+          <div class="widget-header-right">
+            <button class="icon-btn" id="noteAddBtn" title="פתק חדש" style="font-size:18px;font-weight:700">+</button>
+            <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+          </div>
+        </div>
+        <div class="widget-body" id="multiNotesBody">
+          <div class="notes-list" id="notesList"></div>
+        </div>
+      </div>
+
+      <!-- STOCKS -->
+      <div class="widget hidden" id="stocksWidget">
+        <div class="widget-header" data-target="stocksBody">
+          <div class="widget-label">📊 מניות</div>
+          <div class="widget-header-right">
+            <span class="location" id="stocksTime"></span>
+            <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+          </div>
+        </div>
+        <div class="widget-body" id="stocksBody">
+          <div class="stocks-loading hidden" id="stocksLoading"><div class="spinner-sm"></div> טוען...</div>
+          <div class="stocks-list" id="stocksList"></div>
+        </div>
+      </div>
+
+
+      <!-- UV + AIR QUALITY -->
+      <div class="widget hidden" id="uvAirWidget">
+        <div class="widget-header" data-target="uvAirBody">
+          <div class="widget-label">🌡️ UV ואיכות אוויר</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="uvAirBody">
+          <div class="uv-air-loading hidden" id="uvAirLoading"><div class="spinner-sm"></div> טוען...</div>
+          <div class="uv-air-grid" id="uvAirGrid"></div>
+        </div>
+      </div>
+
+      <!-- YOUTUBE MUSIC -->
+      <div class="widget hidden" id="ytMusicWidget">
+        <div class="widget-header" data-target="ytMusicBody">
+          <div class="widget-label">🎵 מוזיקה – יוטיוב</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="ytMusicBody">
+          <div class="ytm-loading hidden" id="ytmLoading"><div class="spinner-sm"></div> טוען...</div>
+          <div class="ytm-list" id="ytmList"></div>
+        </div>
+      </div>
+
+      <!-- OMER COUNT -->
+      <div class="widget hidden" id="omerWidget">
+        <div class="widget-header" data-target="omerBody">
+          <div class="widget-label">📿 ספירת העומר</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="omerBody">
+          <div class="omer-display" id="omerDisplay"></div>
+          <div class="omer-hebrew" id="omerHebrew"></div>
+          <div class="omer-weeks" id="omerWeeks"></div>
+        </div>
+      </div>
+
+      <!-- ALARM / COUNTDOWN -->
+      <div class="widget hidden" id="alarmWidget">
+        <div class="widget-header" data-target="alarmBody">
+          <div class="widget-label">⏰ טיימר עם התראה</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="alarmBody">
+          <div class="alarm-setup">
+            <input class="alarm-input" id="alarmH" type="number" min="0" max="23" value="0" />
+            <span class="alarm-sep">:</span>
+            <input class="alarm-input" id="alarmM" type="number" min="0" max="59" value="5" />
+            <span class="alarm-sep">:</span>
+            <input class="alarm-input" id="alarmS" type="number" min="0" max="59" value="0" />
+          </div>
+          <div class="alarm-countdown" id="alarmCountdown">00:05:00</div>
+          <div class="alarm-controls">
+            <button class="timer-btn" id="alarmStart">▶ התחל</button>
+            <button class="timer-btn" id="alarmStop">■ עצור</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- NASA APOD -->
+      <div class="widget hidden" id="apodWidget">
+        <div class="widget-header" data-target="apodBody">
+          <div class="widget-label">🔭 תמונת היום – NASA</div>
+          <div class="widget-header-right">
+            <button class="icon-btn" id="apodPrev" title="הקודמת">&#8249;</button>
+            <button class="icon-btn" id="apodNext" title="הבאה">&#8250;</button>
+            <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+          </div>
+        </div>
+        <div class="widget-body" id="apodBody">
+          <div class="apod-loading hidden" id="apodLoading"><div class="spinner-sm"></div> טוען...</div>
+          <div class="apod-content" id="apodContent"></div>
+        </div>
+      </div>
+
+      <!-- CRYPTO -->
+      <div class="widget hidden" id="cryptoWidget">
+        <div class="widget-header" data-target="cryptoBody">
+          <div class="widget-label">₿ קריפטו</div>
+          <div class="widget-header-right">
+            <span class="location" id="cryptoTime"></span>
+            <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+          </div>
+        </div>
+        <div class="widget-body" id="cryptoBody">
+          <div class="crypto-loading hidden" id="cryptoLoading"><div class="spinner-sm"></div> טוען...</div>
+          <div class="crypto-list" id="cryptoList"></div>
+        </div>
+      </div>
+
+
+      <!-- DAILY QUOTE -->
+      <div class="widget hidden" id="quoteWidget">
+        <div class="widget-header" data-target="quoteBody">
+          <div class="widget-label">📚 ציטוט יומי</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="quoteBody">
+          <div class="quote-text" id="quoteText"></div>
+          <div class="quote-author" id="quoteAuthor"></div>
+        </div>
+      </div>
+
+      <!-- PARASHA -->
+      <div class="widget hidden" id="parashaWidget">
+        <div class="widget-header" data-target="parashaBody">
+          <div class="widget-label">📖 פרשת השבוע</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="parashaBody">
+          <div id="parashaContent" style="text-align:center;padding:8px 0"></div>
+        </div>
+      </div>
+
+      <!-- DAF YOMI -->
+      <div class="widget hidden" id="dafYomiWidget">
+        <div class="widget-header" data-target="dafYomiBody">
+          <div class="widget-label">📚 דף יומי</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="dafYomiBody">
+          <div id="dafYomiContent" style="text-align:center;padding:8px 0"></div>
+        </div>
+      </div>
+
+      <!-- DATE CONVERTER -->
+      <div class="widget hidden" id="dateConverterWidget">
+        <div class="widget-header" data-target="dateConverterBody">
+          <div class="widget-label">🗓️ ממיר תאריכים</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="dateConverterBody">
+          <input type="date" id="dcInput" class="dc-input" oninput="convertDateToHebrew()">
+          <div id="dcOutput" class="dc-output"></div>
+        </div>
+      </div>
+
+      <!-- GEMATRIA -->
+      <div class="widget hidden" id="gematriaWidget">
+        <div class="widget-header" data-target="gematriaBody">
+          <div class="widget-label">🔢 גימטריה</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="gematriaBody">
+          <input type="text" id="gematriaInput" class="dc-input" placeholder="הכנס טקסט..." oninput="calcGematria()" dir="rtl">
+          <div id="gematriaOutput" class="dc-output"></div>
+        </div>
+      </div>
+
+      <!-- TODO LIST -->
+      <div class="widget hidden" id="todoWidget">
+        <div class="widget-header" data-target="todoBody">
+          <div class="widget-label">✅ רשימת מטלות</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="todoBody">
+          <div class="todo-add-row">
+            <input type="text" id="todoInput" class="dc-input" placeholder="מטלה חדשה..." dir="rtl" style="flex:1">
+            <button id="todoAddBtn" class="calc-btn" style="padding:4px 10px;font-size:18px">+</button>
+          </div>
+          <div id="todoList" style="margin-top:6px"></div>
+        </div>
+      </div>
+
+      <!-- STOPWATCH -->
+      <div class="widget hidden" id="stopwatchWidget">
+        <div class="widget-header" data-target="stopwatchBody">
+          <div class="widget-label">⏱️ שעון עצר</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="stopwatchBody">
+          <div id="swDisplay" class="sw-display">00:00:00.00</div>
+          <div class="sw-btns">
+            <button id="swStart" class="calc-btn sw-btn" title="התחל/עצור">▶ התחל</button>
+            <button id="swLap"   class="calc-btn sw-btn" title="סיבוב">🏁 סיבוב</button>
+            <button id="swReset" class="calc-btn sw-btn" title="אפס">🔄 אפס</button>
+          </div>
+          <div id="swLaps" class="sw-laps"></div>
+        </div>
+      </div>
+
+      <!-- DICE -->
+      <div class="widget hidden" id="diceWidget">
+        <div class="widget-header" data-target="diceBody">
+          <div class="widget-label">🎲 הגרלה</div>
+          <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+        </div>
+        <div class="widget-body" id="diceBody" style="text-align:center">
+          <div class="dice-row">
+            <label class="dice-label">🎲 קוביה</label>
+            <select id="diceFaces" class="s-select" style="width:65px">
+              <option>4</option><option selected>6</option><option>8</option>
+              <option>10</option><option>12</option><option>20</option><option>100</option>
+            </select>
+            <button id="diceRoll" class="dice-action-btn" title="הטל קוביה">🎲 הטל</button>
+          </div>
+          <div id="diceResult" class="dice-result">—</div>
+          <button id="coinFlip" class="dice-action-btn dice-coin-btn" title="הטל מטבע">🪙 הטל מטבע</button>
+          <div id="coinResult" class="dice-result" style="font-size:16px;margin-top:4px"></div>
+        </div>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- NEWS (right col in dual mode) -->
+    <div class="widget" id="newsWidget">
+      <div class="widget-header" data-target="newsBody">
+        <div class="widget-label">📰 חדשות</div>
+        <button class="expand-btn expanded" title="כווץ/הרחב">⌄</button>
+      </div>
+      <div class="widget-body" id="newsBody">
+        <div class="tabs-scroll">
+          <div class="tabs" id="tabs">
+            <button class="tab active" data-cat="news">חדשות</button>
+            <button class="tab" data-cat="tech">טכנולוגיה</button>
+            <button class="tab" data-cat="economy">כלכלה</button>
+            <button class="tab" data-cat="stocks">שוק ההון</button>
+            <button class="tab" data-cat="music">מוזיקה</button>
+          </div>
+        </div>
+        <div class="ticker-wrap" id="tickerWrap">
+          <div class="ticker-label">🔴 עדכון</div>
+          <div class="ticker-track"><div class="ticker-inner" id="tickerInner"></div></div>
+        </div>
+        <div class="news-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="news-search" id="newsSearch" type="text" placeholder="חפש בחדשות..." />
+          <button class="search-clear" id="searchClear">✕</button>
+        </div>
+        <div class="news-meta-row" id="newsMetaRow"></div>
+        <div class="loading hidden" id="loading">
+          <div class="skeleton-item"><div class="sk-thumb"></div><div class="sk-body"><div class="sk-line"></div><div class="sk-line short"></div></div></div>
+          <div class="skeleton-item"><div class="sk-thumb"></div><div class="sk-body"><div class="sk-line"></div><div class="sk-line short"></div></div></div>
+          <div class="skeleton-item"><div class="sk-thumb"></div><div class="sk-body"><div class="sk-line"></div><div class="sk-line short"></div></div></div>
+        </div>
+        <div class="news-list" id="newsList"></div>
+      </div>
+    </div>
+
+  </div><!-- /scroll-area -->
+
+  <!-- LIBRARY PANEL -->
+  <div class="settings-panel library-panel" id="libraryPanel">
+    <div class="settings-header">
+      <button class="back-btn" id="closeLibrary">←</button>
+      <span class="settings-title">ספריית ווידג'טים</span>
+    </div>
+    <div class="settings-body">
+      <div class="s-section">
+        <div class="s-section-title">פעילים כעת</div>
+        <div class="s-row"><label>מזג אוויר</label><label class="toggle"><input type="checkbox" id="libWeather" checked><span class="track"></span></label></div>
+        <div class="s-row"><label>שעון</label><label class="toggle"><input type="checkbox" id="libClock" checked><span class="track"></span></label></div>
+        <div class="s-row"><label>חדשות</label><label class="toggle"><input type="checkbox" id="libNews" checked><span class="track"></span></label></div>
+        <div class="s-row"><label>זמני היום</label><label class="toggle"><input type="checkbox" id="libZmanim"><span class="track"></span></label></div>
+      </div>
+      <div class="s-section">
+        <div class="s-section-title">הוסף ווידג'טים</div>
+        <div class="s-row"><label>🧮 מחשבון</label><label class="toggle"><input type="checkbox" id="showCalculator"><span class="track"></span></label></div>
+        <div class="s-row"><label>⏱️ טיימר</label><label class="toggle"><input type="checkbox" id="showTimer"><span class="track"></span></label></div>
+        <div class="s-row"><label>💵 שערי מטבע</label><label class="toggle"><input type="checkbox" id="showForex"><span class="track"></span></label></div>
+        <div class="s-row"><label>📝 פתקים</label><label class="toggle"><input type="checkbox" id="showNotes"><span class="track"></span></label></div>
+        <div class="s-row"><label>🌍 שעון עולמי</label><label class="toggle"><input type="checkbox" id="showWorldClock"><span class="track"></span></label></div>
+        <div class="s-row"><label>📅 לוח שנה</label><label class="toggle"><input type="checkbox" id="showCalendar"><span class="track"></span></label></div>
+        <div class="s-row"><label>📌 פתקים צבעוניים</label><label class="toggle"><input type="checkbox" id="showMultiNotes"><span class="track"></span></label></div>
+        <div class="s-row"><label>📊 מניות</label><label class="toggle"><input type="checkbox" id="showStocks"><span class="track"></span></label></div>
+        <div class="s-row"><label>🌡️ UV ואיכות אוויר</label><label class="toggle"><input type="checkbox" id="showUVAir"><span class="track"></span></label></div>
+        <div class="s-row"><label>🎵 מוזיקה יוטיוב</label><label class="toggle"><input type="checkbox" id="showYTMusic"><span class="track"></span></label></div>
+        <div class="s-row"><label>📿 ספירת עומר</label><label class="toggle"><input type="checkbox" id="showOmer"><span class="track"></span></label></div>
+        <div class="s-row"><label>⏰ טיימר עם התראה</label><label class="toggle"><input type="checkbox" id="showAlarm"><span class="track"></span></label></div>
+        <div class="s-row"><label>🔭 NASA תמונת היום</label><label class="toggle"><input type="checkbox" id="showAPOD"><span class="track"></span></label></div>
+        <div class="s-row"><label>₿ קריפטו</label><label class="toggle"><input type="checkbox" id="showCrypto"><span class="track"></span></label></div>
+        <div class="s-row"><label>📚 ציטוט יומי</label><label class="toggle"><input type="checkbox" id="showQuote"><span class="track"></span></label></div>
+        <div class="s-row"><label>📖 פרשת השבוע</label><label class="toggle"><input type="checkbox" id="showParasha"><span class="track"></span></label></div>
+        <div class="s-row"><label>📚 דף יומי</label><label class="toggle"><input type="checkbox" id="showDafYomi"><span class="track"></span></label></div>
+        <div class="s-row"><label>🗓️ ממיר תאריכים</label><label class="toggle"><input type="checkbox" id="showDateConverter"><span class="track"></span></label></div>
+        <div class="s-row"><label>🔢 גימטריה</label><label class="toggle"><input type="checkbox" id="showGematria"><span class="track"></span></label></div>
+        <div class="s-row"><label>✅ רשימת מטלות</label><label class="toggle"><input type="checkbox" id="showTodo"><span class="track"></span></label></div>
+        <div class="s-row"><label>⏱️ שעון עצר</label><label class="toggle"><input type="checkbox" id="showStopwatch"><span class="track"></span></label></div>
+        <div class="s-row"><label>🎲 הגרלה</label><label class="toggle"><input type="checkbox" id="showDice"><span class="track"></span></label></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-header">
+      <button class="back-btn" id="closeSettings">←</button>
+      <span class="settings-title">הגדרות</span>
+    </div>
+    <div class="settings-body">
+
+      <div class="s-section">
+        <div class="s-section-title">🌤️ מזג אוויר</div>
+        <div class="s-row">
+          <label>עיר</label>
+          <select id="citySelect" class="s-select">
+            <option value="auto">אוטומטי (לפי IP)</option>
+            <option value="jerusalem">ירושלים</option>
+            <option value="tel-aviv">תל אביב</option>
+            <option value="bnei-brak">בני ברק</option>
+            <option value="haifa">חיפה</option>
+            <option value="beersheba">באר שבע</option>
+            <option value="ashdod">אשדוד</option>
+            <option value="netanya">נתניה</option>
+            <option value="rishon">ראשון לציון</option>
+            <option value="petah-tikva">פתח תקווה</option>
+            <option value="modiin">מודיעין</option>
+            <option value="elad">אלעד</option>
+            <option value="beit-shemesh">בית שמש</option>
+            <option value="modiin-ilit">מודיעין עלית</option>
+            <option value="tzfat">צפת</option>
+            <option value="tiberias">טבריה</option>
+            <option value="raanana">רעננה</option>
+          </select>
+        </div>
+        <div class="s-row">
+          <label>יחידות</label>
+          <div class="btn-group">
+            <button class="bg-btn active" data-unit="celsius">°C</button>
+            <button class="bg-btn" data-unit="fahrenheit">°F</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">🕍 זמני היום</div>
+        <div class="s-row"><label>הצג זמני יום</label><label class="toggle"><input type="checkbox" id="showZmanim"><span class="track"></span></label></div>
+        <div class="s-row"><label>הצג זמני שבת</label><label class="toggle"><input type="checkbox" id="showShabbat" checked><span class="track"></span></label></div>
+        <div class="s-row">
+          <label>הדלקת נרות</label>
+          <select id="candleMins" class="s-select">
+            <option value="18" selected>18 דקות לפני שקיעה</option>
+            <option value="20">20 דקות</option>
+            <option value="30">30 דקות</option>
+            <option value="40">40 דקות (ירושלים)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">📰 פריסת חדשות</div>
+        <div class="layout-grid">
+          <button class="layout-opt active" data-layout="list">
+            <div class="lp lp-list"><span></span><span></span><span></span></div>
+            <div class="layout-name">רשימה</div>
+          </button>
+          <button class="layout-opt" data-layout="cards">
+            <div class="lp lp-cards"><span></span><span></span></div>
+            <div class="layout-name">כרטיסים</div>
+          </button>
+          <button class="layout-opt" data-layout="headlines">
+            <div class="lp lp-headlines"><span></span><span></span><span></span><span></span></div>
+            <div class="layout-name">כותרות</div>
+          </button>
+          <button class="layout-opt" data-layout="magazine">
+            <div class="lp lp-magazine"><span class="hero"></span><span></span><span></span></div>
+            <div class="layout-name">מגזין</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">🎨 מראה</div>
+        <div class="s-row">
+          <label>מיקום כפתור</label>
+          <div class="btn-group">
+            <button class="bg-btn active" data-side="left">⬅ שמאל</button>
+            <button class="bg-btn" data-side="right">ימין ➡</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label>פריסה</label>
+          <div class="btn-group">
+            <button class="bg-btn active" data-columns="single">עמודה אחת</button>
+            <button class="bg-btn" data-columns="dual">דו-עמודות</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label>גודל טקסט</label>
+          <div class="btn-group">
+            <button class="bg-btn" data-fontsize="small">קטן</button>
+            <button class="bg-btn active" data-fontsize="normal">רגיל</button>
+            <button class="bg-btn" data-fontsize="large">גדול</button>
+          </div>
+        </div>
+        <div class="s-row" id="widthRow">
+          <label>רוחב פאנל</label>
+          <div class="btn-group">
+            <button class="bg-btn" data-width="360">צר</button>
+            <button class="bg-btn active" data-width="460">רגיל</button>
+            <button class="bg-btn" data-width="580">רחב</button>
+            <button class="bg-btn" data-width="700">רחב מאוד</button>
+          </div>
+        </div>
+        <div class="s-row hidden" id="dualWidthRow">
+          <label>רוחב כולל <span id="dualWidthVal">900</span>px</label>
+          <input type="range" class="s-slider" id="dualWidthSlider" min="700" max="1400" step="50" value="900">
+        </div>
+        <div class="s-row">
+          <label>טשטוש רקע <span id="blurVal">32</span>px</label>
+          <input type="range" class="s-slider" id="blurSlider" min="5" max="60" value="32">
+        </div>
+        <div class="s-row">
+          <label>שקיפות רקע <span id="opacityVal">88</span>%</label>
+          <input type="range" class="s-slider" id="opacitySlider" min="50" max="98" value="88">
+        </div>
+        <div class="s-row">
+          <label>צבע הדגשה</label>
+          <div class="color-row">
+            <button class="color-dot active" data-color="#4db8ff" style="background:#4db8ff"></button>
+            <button class="color-dot" data-color="#7aff9a" style="background:#7aff9a"></button>
+            <button class="color-dot" data-color="#ff9a4d" style="background:#ff9a4d"></button>
+            <button class="color-dot" data-color="#e87fff" style="background:#e87fff"></button>
+            <button class="color-dot" data-color="#ffd966" style="background:#ffd966"></button>
+            <button class="color-dot" data-color="#ff6b6b" style="background:#ff6b6b"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">📦 ווידג'טים</div>
+        <div class="s-row"><label>מזג אוויר</label><label class="toggle"><input type="checkbox" id="showWeather" checked><span class="track"></span></label></div>
+        <div class="s-row"><label>שעון</label><label class="toggle"><input type="checkbox" id="showClock" checked><span class="track"></span></label></div>
+        <div class="s-row"><label>חדשות</label><label class="toggle"><input type="checkbox" id="showNews" checked><span class="track"></span></label></div>
+        <div class="s-row"><label>סרטת עדכונים</label><label class="toggle"><input type="checkbox" id="showTicker" checked><span class="track"></span></label></div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">🔄 עדכון</div>
+        <div class="s-row">
+          <label>עדכן כל</label>
+          <select id="refreshInterval" class="s-select">
+            <option value="3">3 דקות</option>
+            <option value="5" selected>5 דקות</option>
+            <option value="10">10 דקות</option>
+            <option value="15">15 דקות</option>
+            <option value="30">30 דקות</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">🎨 עיצוב ווידגטים</div>
+        <div class="s-row">
+          <label>גודל כותרת</label>
+          <div class="btn-group">
+            <button class="bg-btn active" data-wsize="normal">רגיל</button>
+            <button class="bg-btn" data-wsize="compact">קומפקטי</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label>פינות</label>
+          <div class="btn-group">
+            <button class="bg-btn active" data-wcorner="rounded">עגול</button>
+            <button class="bg-btn" data-wcorner="square">חד</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">📊 מניות – סמלים</div>
+        <div class="s-row">
+          <label style="font-size:11px">סמלים (פסיק)</label>
+          <input type="text" id="stockSymbolsInput" class="s-select" placeholder="TA35.TA,BTC-USD" style="max-width:150px" />
+        </div>
+      </div>
+
+
+      <div class="s-section">
+        <div class="s-section-title">🚀 כפתור הפעלה</div>
+        <div class="s-row">
+          <label>גודל <span id="launcherWidthVal">140</span>px</label>
+          <input type="range" class="s-slider" id="launcherWidthSlider" min="80" max="240" step="4" value="140">
+        </div>
+        <div class="s-row">
+          <label>שקיפות <span id="launcherBrightVal">8</span>%</label>
+          <input type="range" class="s-slider" id="launcherBrightSlider" min="0" max="95" value="8">
+        </div>
+        <div class="s-row">
+          <label>פתיחה</label>
+          <div class="btn-group">
+            <button class="bg-btn active" data-ltrigger="click">לחיצה</button>
+            <button class="bg-btn" data-ltrigger="hover">ריחוף</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label>צבע רקע</label>
+          <div class="color-row">
+            <button class="lcolor-dot active" data-lcolor="default" style="background:rgba(255,255,255,0.15)" title="שקוף (ברירת מחדל)">◻</button>
+            <button class="lcolor-dot" data-lcolor="rgba(0,0,0,0.72)" style="background:#111" title="שחור"></button>
+            <button class="lcolor-dot" data-lcolor="rgba(0,25,80,0.78)" style="background:#001950" title="כחול כהה"></button>
+            <button class="lcolor-dot" data-lcolor="rgba(0,60,25,0.78)" style="background:#003c19" title="ירוק כהה"></button>
+            <button class="lcolor-dot" data-lcolor="rgba(60,0,90,0.78)" style="background:#3c005a" title="סגול"></button>
+            <button class="lcolor-dot" data-lcolor="rgba(90,10,0,0.78)" style="background:#5a0a00" title="אדום כהה"></button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label>צבע טקסט</label>
+          <div class="color-row">
+            <button class="ltxt-dot active" data-ltxt="#ffffff" style="background:#fff" title="לבן"></button>
+            <button class="ltxt-dot" data-ltxt="#000000" style="background:#000" title="שחור"></button>
+            <button class="ltxt-dot" data-ltxt="#ffdd44" style="background:#ffdd44" title="צהוב"></button>
+            <button class="ltxt-dot" data-ltxt="#4db8ff" style="background:#4db8ff" title="תכלת"></button>
+            <button class="ltxt-dot" data-ltxt="#7aff9a" style="background:#7aff9a" title="ירוק"></button>
+            <button class="ltxt-dot" data-ltxt="#ff9a4d" style="background:#ff9a4d" title="כתום"></button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label>מיקום אנכי</label>
+          <div class="btn-group">
+            <button class="bg-btn" data-lvpos="top">עליון</button>
+            <button class="bg-btn" data-lvpos="center">מרכז</button>
+            <button class="bg-btn active" data-lvpos="bottom">תחתון</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label>מרחק משפה <span id="launcherOffsetXVal">8</span>px</label>
+          <input type="range" class="s-slider" id="launcherOffsetXSlider" min="0" max="120" step="4" value="8">
+        </div>
+        <div class="s-row">
+          <label>פינות</label>
+          <div class="btn-group">
+            <button class="bg-btn active" data-lcorner="rounded">עגול</button>
+            <button class="bg-btn" data-lcorner="square">חד</button>
+          </div>
+        </div>
+        <div class="s-row"><label>הצג סמל מזג אוויר</label><label class="toggle"><input type="checkbox" id="launcherShowIcon" checked><span class="track"></span></label></div>
+        <div class="s-row"><label>הצג שם עיר</label><label class="toggle"><input type="checkbox" id="launcherShowCity" checked><span class="track"></span></label></div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">📌 חלון ווידגטים</div>
+        <div class="s-row"><label>נעל מיקום (לא נסגר בקליק מחוץ)</label><label class="toggle"><input type="checkbox" id="lockPanel"><span class="track"></span></label></div>
+        <div class="s-row"><label>הפעל עם Windows</label><label class="toggle"><input type="checkbox" id="startWithWindows"><span class="track"></span></label></div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title">📡 RSS מותאם אישית</div>
+        <div class="s-row" style="gap:6px;flex-wrap:wrap">
+          <input type="text" id="customFeedUrl" class="s-select" placeholder="https://example.com/feed" style="flex:1;min-width:0">
+          <select id="customFeedCat" class="s-select" style="width:80px;flex-shrink:0">
+            <option value="news">חדשות</option>
+            <option value="tech">טק</option>
+            <option value="economy">כלכלה</option>
+            <option value="stocks">שוק</option>
+            <option value="music">מוזיקה</option>
+          </select>
+          <button class="bg-btn" id="addCustomFeedBtn" style="flex-shrink:0">הוסף</button>
+        </div>
+        <div id="customFeedList" style="margin-top:6px"></div>
+      </div>
+
+      <div class="s-version">ווידג'טים v1.4</div>
+    </div>
+  </div>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>

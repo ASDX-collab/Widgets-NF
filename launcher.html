@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width:100%; height:100%; background:transparent; overflow:hidden; -webkit-app-region:no-drag; user-select:none; }
+    .btn {
+      width:100%; height:100%; display:flex; align-items:center; gap:8px; padding:0 12px;
+      background:rgba(255,255,255,0.08);
+      backdrop-filter:blur(10px) saturate(160%); -webkit-backdrop-filter:blur(10px) saturate(160%);
+      border:1px solid rgba(255,255,255,0.13); border-radius:11px; cursor:pointer;
+      transition:background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    .btn:hover { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.22); }
+    .btn:active { transform:scale(0.97); }
+    .btn.open   { background:rgba(255,255,255,0.18); border-color:rgba(255,255,255,0.3); }
+    .icon  { font-size:24px; line-height:1; flex-shrink:0; }
+    .info  { display:flex; flex-direction:column; align-items:flex-start; min-width:0; }
+    .temp  { font-size:16px; font-weight:400; color:#fff; font-family:'Segoe UI Variable','Segoe UI',sans-serif; line-height:1; }
+    .city  { font-size:10px; color:rgba(255,255,255,0.6); font-family:'Segoe UI Variable','Segoe UI',sans-serif; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:76px; }
+  </style>
+</head>
+<body>
+  <div class="btn" id="btn" title="ווידג'טים — לחיצה ימנית לאפשרויות">
+    <div class="icon" id="icon">⏳</div>
+    <div class="info">
+      <div class="temp" id="temp">--°</div>
+      <div class="city" id="city">ווידג'טים</div>
+    </div>
+  </div>
+  <script>
+    const btn = document.getElementById('btn');
+    let trigger = 'click';
+    let lastOpacity = 0.08;
+    let useCustomColor = false;
+
+    function applyOpacity() {
+      // CSS opacity affects the whole button so it works regardless of background color
+      btn.style.opacity = Math.max(lastOpacity, 0.06);
+      // Also update the rgba background for the default (transparent) color
+      if (!useCustomColor) btn.style.background = `rgba(255,255,255,${lastOpacity})`;
+    }
+
+    // Left click = toggle panel
+    btn.addEventListener('click', () => window.api.togglePanel());
+
+    // Hover: show panel when trigger is hover
+    btn.addEventListener('mouseenter', () => {
+      if (trigger === 'hover') window.api.showPanel();
+    });
+
+    // Right click = context menu
+    btn.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      window.api.showLauncherMenu();
+    });
+
+    window.api.onPanelState(open => btn.classList.toggle('open', open));
+
+    window.api.onSetOpacity(val => {
+      lastOpacity = Math.max(val, 0);
+      applyOpacity();
+    });
+
+    window.api.onSetColor(color => {
+      if (color === 'default') {
+        useCustomColor = false;
+        applyOpacity();
+      } else {
+        useCustomColor = true;
+        btn.style.background = color;
+      }
+    });
+
+    window.api.onSetTrigger(t => { trigger = t; });
+
+    async function init() {
+      try {
+        const geo = await window.api.getLocation();
+        const w   = await window.api.fetchWeatherLauncher(geo.lat, geo.lon);
+        if (w && !w.error) {
+          document.getElementById('icon').textContent = w.icon;
+          document.getElementById('temp').textContent = w.temp + '°';
+          document.getElementById('city').textContent = geo.city || 'ווידג\'טים';
+        }
+      } catch {
+        document.getElementById('icon').textContent = '🌤️';
+        document.getElementById('city').textContent = 'ווידג\'טים';
+      }
+    }
+    init();
+    setInterval(init, 10 * 60 * 1000);
+
+    // Live weather update from panel settings change
+    window.api.onWeatherUpdate(w => {
+      if (w && !w.error) {
+        document.getElementById('icon').textContent = w.icon;
+        document.getElementById('temp').textContent = w.temp + '°';
+        document.getElementById('city').textContent = w.city || 'ווידג\'טים';
+      }
+    });
+
+    // Text color setting
+    window.api.onSetTextColor(color => {
+      document.getElementById('temp').style.color = color;
+      document.getElementById('city').style.color = color;
+    });
+
+    // Corner radius
+    window.api.onSetCorner(c => {
+      btn.style.borderRadius = c === 'square' ? '4px' : '11px';
+    });
+
+    // Show/hide weather icon
+    window.api.onSetShowIcon(v => {
+      document.getElementById('icon').style.display = v ? '' : 'none';
+    });
+
+    // Show/hide city name
+    window.api.onSetShowCity(v => {
+      document.getElementById('city').style.display = v ? '' : 'none';
+    });
+
+    // Dynamic sizing — scale fonts with button width
+    window.api.onSetWidth(width => {
+      const scale = width / 140;
+      document.getElementById('icon').style.fontSize = Math.round(24 * scale) + 'px';
+      document.getElementById('temp').style.fontSize = Math.round(16 * scale) + 'px';
+      document.getElementById('city').style.fontSize = Math.round(10 * scale) + 'px';
+    });
+  </script>
+</body>
+</html>

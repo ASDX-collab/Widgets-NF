@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ווידג'טים — חדשות ותוכן יהודי ל-Windows</title>
+  <meta name="description" content="ווידג'טים חכמים בסגנון Windows 11 — חדשות חרדיות, זמני תפילה, לוח עברי, מזג אוויר ועוד">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif;
+      background: #0a0a14;
+      color: #e8eaf0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background gradient */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 20% 20%, rgba(0,120,212,0.18) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 80%, rgba(100,60,180,0.15) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    /* NAV */
+    nav {
+      padding: 18px 0;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .nav-logo { font-size: 20px; font-weight: 600; color: #fff; text-decoration: none; }
+    .nav-links { display: flex; gap: 20px; }
+    .nav-links a { color: rgba(255,255,255,0.65); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+    .nav-links a:hover { color: #fff; }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 80px 0 60px;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(0,120,212,0.2);
+      border: 1px solid rgba(0,120,212,0.4);
+      color: #60b8ff;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(36px, 7vw, 64px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -1px;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #fff 40%, #60b8ff 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 18px;
+      color: rgba(255,255,255,0.6);
+      max-width: 560px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .btn-download {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: #0078d4;
+      color: #fff;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.15s;
+      box-shadow: 0 4px 24px rgba(0,120,212,0.4);
+    }
+    .btn-download:hover { background: #006cbe; transform: translateY(-1px); }
+    .btn-download svg { width: 20px; height: 20px; flex-shrink: 0; }
+    .dl-note { margin-top: 12px; font-size: 12px; color: rgba(255,255,255,0.35); }
+
+    /* SCREENSHOT */
+    .screenshot-wrap {
+      margin: 60px auto;
+      max-width: 720px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+      background: rgba(255,255,255,0.04);
+      padding: 40px;
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    }
+    .widget-preview {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-width: 160px;
+      text-align: center;
+    }
+    .widget-preview .wp-icon { font-size: 28px; margin-bottom: 8px; }
+    .widget-preview .wp-title { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
+    .widget-preview .wp-val { font-size: 22px; font-weight: 600; color: #fff; }
+
+    /* FEATURES */
+    .section-title {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 40px;
+      color: #fff;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 80px;
+    }
+    .feature {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .feature:hover { border-color: rgba(0,120,212,0.4); background: rgba(0,120,212,0.06); }
+    .feature-icon { font-size: 24px; margin-bottom: 10px; }
+    .feature-name { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .feature-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+
+    /* CHANGELOG */
+    .changelog {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 80px;
+    }
+    .changelog h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; color: #fff; }
+    .changelog ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .changelog li { font-size: 14px; color: rgba(255,255,255,0.65); display: flex; align-items: flex-start; gap: 8px; }
+    .changelog li::before { content: '✅'; flex-shrink: 0; }
+
+    /* INSTALL */
+    .install {
+      text-align: center;
+      padding: 60px 0 80px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .install h2 { font-size: 28px; font-weight: 700; margin-bottom: 12px; color: #fff; }
+    .install p { color: rgba(255,255,255,0.5); margin-bottom: 32px; font-size: 15px; }
+    .steps {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+    .step {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-width: 160px;
+      max-width: 200px;
+      text-align: center;
+    }
+    .step-num { font-size: 24px; font-weight: 700; color: #0078d4; margin-bottom: 8px; }
+    .step-text { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 24px 0;
+      font-size: 13px;
+      color: rgba(255,255,255,0.25);
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    footer a { color: rgba(255,255,255,0.4); text-decoration: none; }
+    footer a:hover { color: rgba(255,255,255,0.7); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <nav>
+    <a class="nav-logo" href="#">🪟 ווידג'טים</a>
+    <div class="nav-links">
+      <a href="https://github.com/ASDX-collab/Widgets-NF">GitHub</a>
+      <a href="https://github.com/ASDX-collab/Widgets-NF/releases">גרסאות</a>
+      <a href="https://github.com/ASDX-collab/Widgets-NF/issues">דיווח בעיה</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">⬇ גרסה 1.5.0 זמינה להורדה</div>
+    <h1>ווידג'טים לווינדוס</h1>
+    <p>
+      חדשות חרדיות, זמני תפילה, לוח עברי, מזג אוויר ועשרות ווידגטים —
+      הכל בממשק מודרני בסגנון Windows 11.
+    </p>
+    <a class="btn-download" href="https://github.com/ASDX-collab/Widgets-NF/releases/latest/download/Widgets.NF.Setup.1.5.0.exe">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      הורד עכשיו — חינם
+    </a>
+    <div class="dl-note">Windows 10 / 11 · 64-bit · ≈ 90MB</div>
+  </section>
+
+  <!-- PREVIEW -->
+  <div class="screenshot-wrap">
+    <div class="widget-preview">
+      <div class="wp-icon">🕐</div>
+      <div class="wp-title">שעון</div>
+      <div class="wp-val" id="clockVal">00:00</div>
+    </div>
+    <div class="widget-preview">
+      <div class="wp-icon">🌤️</div>
+      <div class="wp-title">מזג אוויר</div>
+      <div class="wp-val">22°</div>
+    </div>
+    <div class="widget-preview">
+      <div class="wp-icon">🕍</div>
+      <div class="wp-title">שקיעה היום</div>
+      <div class="wp-val">19:14</div>
+    </div>
+    <div class="widget-preview">
+      <div class="wp-icon">📰</div>
+      <div class="wp-title">חדשות</div>
+      <div class="wp-val" style="font-size:14px;color:rgba(255,255,255,0.7)">עדכון שוטף</div>
+    </div>
+    <div class="widget-preview">
+      <div class="wp-icon">₿</div>
+      <div class="wp-title">Bitcoin</div>
+      <div class="wp-val" style="color:#7aff9a">$84K</div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <h2 class="section-title">מה יש בפנים?</h2>
+  <div class="features">
+    <div class="feature"><div class="feature-icon">📰</div><div class="feature-name">חדשות חרדיות</div><div class="feature-desc">JDN, קורא, האמת, HM ועוד — עם גלילה אינסופית וסינון</div></div>
+    <div class="feature"><div class="feature-icon">🕍</div><div class="feature-name">זמני היום</div><div class="feature-desc">כל זמני התפילה, הדלקת נרות והבדלה לפי מיקומך</div></div>
+    <div class="feature"><div class="feature-icon">🌤️</div><div class="feature-name">מזג אוויר</div><div class="feature-desc">טמפרטורה, לחות, רוח ותחזית 5 ימים — מוצג גם בכפתור</div></div>
+    <div class="feature"><div class="feature-icon">📅</div><div class="feature-name">לוח עברי</div><div class="feature-desc">חגים, ראשי חודש ופרשת השבוע</div></div>
+    <div class="feature"><div class="feature-icon">📊</div><div class="feature-name">מניות ומט"ח</div><div class="feature-desc">TA35, BTC, MSFT, AAPL ועוד לפי בחירה + שערי מטבע</div></div>
+    <div class="feature"><div class="feature-icon">🎵</div><div class="feature-name">מוזיקה יהודית</div><div class="feature-desc">סרטונים חדשים ממרדכי בן דוד, ישי ריבו ועוד</div></div>
+    <div class="feature"><div class="feature-icon">📖</div><div class="feature-name">לימוד יומי</div><div class="feature-desc">דף יומי, פרשת השבוע, ספירת העומר</div></div>
+    <div class="feature"><div class="feature-icon">📡</div><div class="feature-name">RSS מותאם אישית</div><div class="feature-desc">הוסף כל אתר חדשות עם פיד RSS לפי בחירתך</div></div>
+    <div class="feature"><div class="feature-icon">🌙</div><div class="feature-name">מצב כהה / בהיר</div><div class="feature-desc">עוקב אוטומטית אחרי הגדרת Windows</div></div>
+    <div class="feature"><div class="feature-icon">⚙️</div><div class="feature-name">הגדרות מלאות</div><div class="feature-desc">גודל, מיקום, צבע, שקיפות, טריגר פתיחה ועוד</div></div>
+    <div class="feature"><div class="feature-icon">🔢</div><div class="feature-name">כלים נוספים</div><div class="feature-desc">מחשבון, גימטריה, שעון עצר, רשימת מטלות, קוביה</div></div>
+    <div class="feature"><div class="feature-icon">🚀</div><div class="feature-name">קל ומהיר</div><div class="feature-desc">~200MB RAM, ~0% CPU בסרק — מותאם לשימוש רציף</div></div>
+  </div>
+
+  <!-- CHANGELOG -->
+  <div class="changelog">
+    <h2>🔄 חדש בגרסה 1.5.0</h2>
+    <ul>
+      <li>מצב כהה/בהיר אוטומטי לפי Windows</li>
+      <li>טעינת 10 חדשות בכל פעם עם גלילה אינסופית</li>
+      <li>לחצן סגירת כרטיס חדשות בודד</li>
+      <li>כותרות ממוינות לפי תאריך פרסום</li>
+      <li>סרטת עדכונים (Ticker) זורמת</li>
+      <li>הגדרות כפתור מורחבות — גודל, מיקום, צבע, פינות, צבע טקסט</li>
+      <li>פיד RSS מותאם אישית — הוסף כל אתר</li>
+      <li>הפעלה אוטומטית עם Windows</li>
+      <li>שיפורי ביצועים — ביטול blur כפול, עצירת אנימציות ברקע</li>
+      <li>תיקון קריאת חדשות מ-kore.co.il</li>
+    </ul>
+  </div>
+
+  <!-- INSTALL -->
+  <section class="install">
+    <h2>התקנה בשלושה שלבים</h2>
+    <p>ללא הרשמה, ללא קוד, ללא תשלום</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">לחץ על כפתור ההורדה</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">הפעל את קובץ ה-EXE והתקן</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">הכפתור מופיע על המסך — לחץ לפתיחה</div></div>
+    </div>
+    <a class="btn-download" href="https://github.com/ASDX-collab/Widgets-NF/releases/latest/download/Widgets.NF.Setup.1.5.0.exe">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      הורד את גרסה 1.5.0
+    </a>
+    <div class="dl-note">
+      או <a href="https://github.com/ASDX-collab/Widgets-NF/releases" style="color:rgba(255,255,255,0.45);text-decoration:underline">עיין בכל הגרסאות</a>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="container">
+    © 2026 <a href="https://github.com/ASDX-collab/Widgets-NF">ASDX-collab</a> · כל הזכויות שמורות · שימוש אישי בלבד · <a href="https://github.com/ASDX-collab/Widgets-NF/blob/main/LICENSE">רישיון</a>
+  </div>
+</footer>
+
+<script>
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    document.getElementById('clockVal').textContent = h + ':' + m;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
