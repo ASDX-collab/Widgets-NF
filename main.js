@@ -312,9 +312,8 @@ nativeTheme.on('updated', () => {
 });
 
 function createTray() {
-  const iconPath = path.join(__dirname, 'Gemini_Generated_Image_5p7n535p7n535p7n.png');
-  let icon = nativeImage.createFromPath(iconPath);
-  if (!icon.isEmpty()) icon = icon.resize({ width: 16, height: 16 });
+  const iconPath = path.join(__dirname, 'icon.ico');
+  const icon = nativeImage.createFromPath(iconPath);
   tray = new Tray(icon);
   tray.setToolTip('ווידגטים');
   const updateMenu = () => Menu.buildFromTemplate([
@@ -351,6 +350,7 @@ function createPanel() {
     width:460, height:panelH, x:workArea.x, y:workArea.y + Math.floor((workArea.height - panelH) / 2),
     frame:false, transparent:true, alwaysOnTop:false,
     skipTaskbar:true, resizable:false, show:false,
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences:{ preload:path.join(__dirname,'preload.js'), contextIsolation:true, nodeIntegration:false, backgroundThrottling:true },
   });
   panelWindow.loadFile(path.join(__dirname,'index.html'));
@@ -372,6 +372,7 @@ function createLauncher(side='left') {
     x:getLauncherX(side, workArea), y:getLauncherY(workArea),
     frame:false, transparent:true, alwaysOnTop:true,
     skipTaskbar:true, resizable:false, movable:false, focusable:false,
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences:{ preload:path.join(__dirname,'preload.js'), contextIsolation:true, nodeIntegration:false, backgroundThrottling:true },
   });
   launcherWindow.loadFile(path.join(__dirname,'launcher.html'));
