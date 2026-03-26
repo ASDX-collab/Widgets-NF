@@ -154,14 +154,23 @@ const FEED_NAMES = {
   'newsmusic.blogspot.com':'חדשות מוזיקה',
 };
 
+// Domains whose names always override the feed's own title
+const FEED_NAME_OVERRIDES = {
+  'kore.co.il': 'כל רגע',
+};
+
 function getSourceName(feedUrl, feedTitle) {
-  // FEED_NAMES overrides the feed's own title for known domains
-  for (const [domain, name] of Object.entries(FEED_NAMES)) {
+  // Hard overrides take priority over everything
+  for (const [domain, name] of Object.entries(FEED_NAME_OVERRIDES)) {
     if (feedUrl.includes(domain)) return name;
   }
   // Use the actual RSS feed title if it's a real title (not a URL)
   if (feedTitle && !feedTitle.startsWith('http') && !feedTitle.includes('://') && feedTitle.trim().length > 1) {
     return feedTitle;
+  }
+  // Fallback: friendly name from our map
+  for (const [domain, name] of Object.entries(FEED_NAMES)) {
+    if (feedUrl.includes(domain)) return name;
   }
   // Last resort: hostname
   try { return new URL(feedUrl).hostname.replace(/^www\./,''); } catch {}
