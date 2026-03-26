@@ -145,7 +145,7 @@ const FEED_NAMES = {
   'geektime.co.il':        'גיקטיים',
   'tgspot.co.il':          'טלגדג\'ט',
   'jdn.co.il':             'JDN חדשות',
-  'kore.co.il':            'קורא',
+  'kore.co.il':            'כל רגע',
   'emess.co.il':           'האמת',
   'hm-news.co.il':         'HM חדשות',
   'sponser.co.il':         'ספונסר',
@@ -155,13 +155,13 @@ const FEED_NAMES = {
 };
 
 function getSourceName(feedUrl, feedTitle) {
+  // FEED_NAMES overrides the feed's own title for known domains
+  for (const [domain, name] of Object.entries(FEED_NAMES)) {
+    if (feedUrl.includes(domain)) return name;
+  }
   // Use the actual RSS feed title if it's a real title (not a URL)
   if (feedTitle && !feedTitle.startsWith('http') && !feedTitle.includes('://') && feedTitle.trim().length > 1) {
     return feedTitle;
-  }
-  // Fallback: friendly name from our map
-  for (const [domain, name] of Object.entries(FEED_NAMES)) {
-    if (feedUrl.includes(domain)) return name;
   }
   // Last resort: hostname
   try { return new URL(feedUrl).hostname.replace(/^www\./,''); } catch {}
