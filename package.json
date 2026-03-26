@@ -2,6 +2,7 @@
   "name": "haredi-widgets",
   "version": "1.5.0",
   "description": "ווידג'טים בסגנון Windows 11 עם חדשות חרדיות",
+  "author": "ASDX-collab",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -18,9 +19,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "language": "1037",
-      "installerLanguages": ["he"],
-      "shortcutName": "ווידגטים"
+      "language": "1037"
     },
     "files": [
       "main.js",
