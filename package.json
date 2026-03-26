@@ -6,7 +6,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win --x64"
+    "build": "electron-builder --win --x64 --publish never"
   },
   "build": {
     "appId": "com.haredi.widgets",
@@ -35,8 +35,7 @@
     ],
     "directories": {
       "output": "dist"
-    },
-    "publish": "never"
+    }
   },
   "dependencies": {
     "@hebcal/core": "^5.10.1",
