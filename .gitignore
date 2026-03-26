@@ -9,6 +9,7 @@ yarn-error.log*
 
 # Build outputs
 dist/
+package-lock.json
 build/
 *.exe
 *.dmg
