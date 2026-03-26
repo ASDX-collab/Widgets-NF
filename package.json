@@ -35,7 +35,8 @@
     ],
     "directories": {
       "output": "dist"
-    }
+    },
+    "publish": "never"
   },
   "dependencies": {
     "@hebcal/core": "^5.10.1",
