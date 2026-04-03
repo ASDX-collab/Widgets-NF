@@ -208,7 +208,7 @@ function applySettings() {
   window.api.setPanelLocked(S.panelLocked);
 
   clearInterval(refreshTimer);
-  refreshTimer = setInterval(() => { newsCache[currentCat]=null; loadNews(currentCat); loadWeather(); }, S.refreshMin*60*1000);
+  refreshTimer = setInterval(() => { newsCache[currentCat]=null; loadNews(currentCat); loadWeather(); if (S.showIcal) loadIcal(); }, S.refreshMin*60*1000);
 }
 
 function toggleWidgetVis(id, show) {
@@ -1393,8 +1393,13 @@ async function loadIcal() {
     return;
   }
   loading.classList.remove('hidden'); list.innerHTML = '';
+  const safetyTimer = setTimeout(() => {
+    loading.classList.add('hidden');
+    if (!list.innerHTML) list.innerHTML = '<div class="no-results" style="padding:10px">הזמן קצוב — בדוק את כתובת ה-iCal בהגדרות</div>';
+  }, 18000);
   try {
     const data = await window.api.fetchIcal(S.icalUrl);
+    clearTimeout(safetyTimer);
     loading.classList.add('hidden');
     if (data.error || !data.events || !data.events.length) {
       list.innerHTML = `<div class="no-results" style="padding:10px">${data.error || 'אין אירועים קרובים'}</div>`;
@@ -1418,6 +1423,7 @@ async function loadIcal() {
       </div>`;
     }).join('');
   } catch (e) {
+    clearTimeout(safetyTimer);
     loading.classList.add('hidden');
     list.innerHTML = '<div class="no-results" style="padding:10px">שגיאה בטעינת לוח שנה</div>';
   }
