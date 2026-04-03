@@ -134,6 +134,7 @@
     .feature-icon { font-size: 24px; margin-bottom: 10px; }
     .feature-name { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
     .feature-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+    .new-badge { display: inline-block; background: #0078d4; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-right: 4px; font-weight: 700; vertical-align: middle; }
 
     /* CHANGELOG */
     .changelog {
@@ -141,12 +142,15 @@
       border: 1px solid rgba(255,255,255,0.07);
       border-radius: 16px;
       padding: 32px;
-      margin-bottom: 80px;
+      margin-bottom: 24px;
     }
     .changelog h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; color: #fff; }
     .changelog ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
     .changelog li { font-size: 14px; color: rgba(255,255,255,0.65); display: flex; align-items: flex-start; gap: 8px; }
     .changelog li::before { content: '✅'; flex-shrink: 0; }
+    .changelog-old { margin-bottom: 80px; }
+    .changelog-old h2 { color: rgba(255,255,255,0.5); }
+    .changelog-old li { color: rgba(255,255,255,0.4); }
 
     /* INSTALL */
     .install {
@@ -198,13 +202,13 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-badge">⬇ גרסה 1.5.0 זמינה להורדה</div>
+    <div class="hero-badge">🎉 גרסה 2.0.0 זמינה להורדה</div>
     <h1>ווידג'טים לווינדוס</h1>
     <p>
       חדשות חרדיות, זמני תפילה, לוח עברי, מזג אוויר ועשרות ווידגטים —
       הכל בממשק מודרני בסגנון Windows 11.
     </p>
-    <a class="btn-download" href="https://github.com/ASDX-collab/Widgets-NF/releases/latest/download/Widgets.NF.Setup.1.5.0.exe">
+    <a class="btn-download" href="https://github.com/ASDX-collab/Widgets-NF/releases/latest/download/Widgets.NF.Setup.2.0.0.exe">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
@@ -236,32 +240,56 @@
       <div class="wp-val" style="font-size:14px;color:rgba(255,255,255,0.7)">עדכון שוטף</div>
     </div>
     <div class="widget-preview">
-      <div class="wp-icon">₿</div>
-      <div class="wp-title">Bitcoin</div>
-      <div class="wp-val" style="color:#7aff9a">$84K</div>
+      <div class="wp-icon">🔔</div>
+      <div class="wp-title">התראות זמנים</div>
+      <div class="wp-val" style="font-size:14px;color:#ffd966">חדש!</div>
     </div>
   </div>
 
   <!-- FEATURES -->
   <h2 class="section-title">מה יש בפנים?</h2>
   <div class="features">
-    <div class="feature"><div class="feature-icon">📰</div><div class="feature-name">חדשות חרדיות</div><div class="feature-desc">JDN, קורא, האמת, HM ועוד — עם גלילה אינסופית וסינון</div></div>
-    <div class="feature"><div class="feature-icon">🕍</div><div class="feature-name">זמני היום</div><div class="feature-desc">כל זמני התפילה, הדלקת נרות והבדלה לפי מיקומך</div></div>
+    <div class="feature"><div class="feature-icon">📰</div><div class="feature-name">חדשות חרדיות</div><div class="feature-desc">JDN, קורא, האמת, HM ועוד — עם גלילה אינסופית, סינון וחסימת מקורות</div></div>
+    <div class="feature"><div class="feature-icon">🕍</div><div class="feature-name">זמני היום <span class="new-badge">2.0</span></div><div class="feature-desc">כל זמני התפילה + לחיצה ימנית להגדרת התראה X דקות לפני כל זמן</div></div>
+    <div class="feature"><div class="feature-icon">🚨</div><div class="feature-name">התרעות פיקוד העורף <span class="new-badge">2.0</span></div><div class="feature-desc">התרעות בזמן אמת עם צליל, היסטוריה ואפשרות סינון לפי עיר</div></div>
+    <div class="feature"><div class="feature-icon">🔔</div><div class="feature-name">מערכת התראות <span class="new-badge">2.0</span></div><div class="feature-desc">5 צלילים לבחירה — צלצול, פעמון, עדין, דחוף או שקט + תצוגה מקדימה</div></div>
     <div class="feature"><div class="feature-icon">🌤️</div><div class="feature-name">מזג אוויר</div><div class="feature-desc">טמפרטורה, לחות, רוח ותחזית 5 ימים — מוצג גם בכפתור</div></div>
-    <div class="feature"><div class="feature-icon">📅</div><div class="feature-name">לוח עברי</div><div class="feature-desc">חגים, ראשי חודש ופרשת השבוע</div></div>
-    <div class="feature"><div class="feature-icon">📊</div><div class="feature-name">מניות ומט"ח</div><div class="feature-desc">TA35, BTC, MSFT, AAPL ועוד לפי בחירה + שערי מטבע</div></div>
+    <div class="feature"><div class="feature-icon">📅</div><div class="feature-name">לוח עברי + iCal <span class="new-badge">2.0</span></div><div class="feature-desc">חגים, ראשי חודש, פרשת השבוע + סנכרון אירועים מ-Google Calendar</div></div>
+    <div class="feature"><div class="feature-icon">📊</div><div class="feature-name">מניות, מט"ח וקריפטו</div><div class="feature-desc">TA35, BTC, MSFT, AAPL ועוד + שערי מטבע + Bitcoin, Ethereum, Solana</div></div>
     <div class="feature"><div class="feature-icon">🎵</div><div class="feature-name">מוזיקה יהודית</div><div class="feature-desc">סרטונים חדשים ממרדכי בן דוד, ישי ריבו ועוד</div></div>
-    <div class="feature"><div class="feature-icon">📖</div><div class="feature-name">לימוד יומי</div><div class="feature-desc">דף יומי, פרשת השבוע, ספירת העומר</div></div>
+    <div class="feature"><div class="feature-icon">📖</div><div class="feature-name">לימוד יומי <span class="new-badge">2.0</span></div><div class="feature-desc">דף יומי, פרשת השבוע, ספירת העומר עם בחירת אותיות/מספרים ולעומר/בעומר</div></div>
     <div class="feature"><div class="feature-icon">📡</div><div class="feature-name">RSS מותאם אישית</div><div class="feature-desc">הוסף כל אתר חדשות עם פיד RSS לפי בחירתך</div></div>
-    <div class="feature"><div class="feature-icon">🌙</div><div class="feature-name">מצב כהה / בהיר</div><div class="feature-desc">עוקב אוטומטית אחרי הגדרת Windows</div></div>
-    <div class="feature"><div class="feature-icon">⚙️</div><div class="feature-name">הגדרות מלאות</div><div class="feature-desc">גודל, מיקום, צבע, שקיפות, טריגר פתיחה ועוד</div></div>
-    <div class="feature"><div class="feature-icon">🔢</div><div class="feature-name">כלים נוספים</div><div class="feature-desc">מחשבון, גימטריה, שעון עצר, רשימת מטלות, קוביה</div></div>
+    <div class="feature"><div class="feature-icon">🖥️</div><div class="feature-name">ניטור מערכת <span class="new-badge">2.0</span></div><div class="feature-desc">צריכת CPU וזיכרון RAM בזמן אמת</div></div>
+    <div class="feature"><div class="feature-icon">🎨</div><div class="feature-name">ערכות נושא <span class="new-badge">2.0</span></div><div class="feature-desc">ברירת מחדל, Dracula, Nord, Solarized + מצב כהה/בהיר אוטומטי</div></div>
+    <div class="feature"><div class="feature-icon">⚙️</div><div class="feature-name">הגדרות מלאות</div><div class="feature-desc">גודל, מיקום, צבע, שקיפות, טריגר פתיחה, נעילת פאנל, גרירת כפתור</div></div>
+    <div class="feature"><div class="feature-icon">🔢</div><div class="feature-name">כלים נוספים</div><div class="feature-desc">מחשבון, גימטריה, שעון עצר, טיימר, רשימת מטלות, קוביה ומטבע, ממיר תאריכים</div></div>
+    <div class="feature"><div class="feature-icon">🌍</div><div class="feature-name">שעון עולמי + UV</div><div class="feature-desc">ניו יורק, לונדון, טוקיו + מדד UV ואיכות אוויר</div></div>
     <div class="feature"><div class="feature-icon">🚀</div><div class="feature-name">קל ומהיר</div><div class="feature-desc">~200MB RAM, ~0% CPU בסרק — מותאם לשימוש רציף</div></div>
   </div>
 
-  <!-- CHANGELOG -->
+  <!-- CHANGELOG v2 -->
   <div class="changelog">
-    <h2>🔄 חדש בגרסה 1.5.0</h2>
+    <h2>🎉 חדש בגרסה 2.0.0</h2>
+    <ul>
+      <li>התרעות פיקוד העורף בזמן אמת — עם צליל, התראת מערכת, היסטוריה וסינון לפי עיר</li>
+      <li>התראות זמני יום — לחיצה ימנית על כל זמן להגדרת תזכורת X דקות לפני</li>
+      <li>5 צלילי התראה לבחירה — צלצול, פעמון, עדין, דחוף, שקט + תצוגה מקדימה</li>
+      <li>אירועים מ-iCal / Google Calendar — סנכרון אוטומטי עם כתובת iCal</li>
+      <li>ניטור מערכת — צריכת CPU ו-RAM בזמן אמת</li>
+      <li>ספירת העומר — בחירת אותיות (גימטריה) או מספרים + נוסח לעומר/בעומר</li>
+      <li>ערכות נושא — Dracula, Nord, Solarized</li>
+      <li>חסימת מקורות חדשות ומילות מפתח</li>
+      <li>גרירת כפתור הפעלה למיקום חופשי על המסך</li>
+      <li>קיצור מקשים גלובלי לפתיחת הפאנל</li>
+      <li>מניעת הפעלה כפולה של התוכנה</li>
+      <li>תיקון באג קריטי — ספריית ווידג'טים עובדת כמו שצריך</li>
+      <li>הפעלה עם Windows — תמיכה מלאה גם בגרסת פיתוח</li>
+    </ul>
+  </div>
+
+  <!-- CHANGELOG v1 -->
+  <div class="changelog changelog-old">
+    <h2>📦 גרסה 1.5.0</h2>
     <ul>
       <li>מצב כהה/בהיר אוטומטי לפי Windows</li>
       <li>טעינת 10 חדשות בכל פעם עם גלילה אינסופית</li>
@@ -272,7 +300,6 @@
       <li>פיד RSS מותאם אישית — הוסף כל אתר</li>
       <li>הפעלה אוטומטית עם Windows</li>
       <li>שיפורי ביצועים — ביטול blur כפול, עצירת אנימציות ברקע</li>
-      <li>תיקון קריאת חדשות מ-kore.co.il</li>
     </ul>
   </div>
 
@@ -285,11 +312,11 @@
       <div class="step"><div class="step-num">2</div><div class="step-text">הפעל את קובץ ה-EXE והתקן</div></div>
       <div class="step"><div class="step-num">3</div><div class="step-text">הכפתור מופיע על המסך — לחץ לפתיחה</div></div>
     </div>
-    <a class="btn-download" href="https://github.com/ASDX-collab/Widgets-NF/releases/latest/download/Widgets.NF.Setup.1.5.0.exe">
+    <a class="btn-download" href="https://github.com/ASDX-collab/Widgets-NF/releases/latest/download/Widgets.NF.Setup.2.0.0.exe">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
-      הורד את גרסה 1.5.0
+      הורד את גרסה 2.0.0
     </a>
     <div class="dl-note">
       או <a href="https://github.com/ASDX-collab/Widgets-NF/releases" style="color:rgba(255,255,255,0.45);text-decoration:underline">עיין בכל הגרסאות</a>

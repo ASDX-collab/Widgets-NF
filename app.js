@@ -19,6 +19,7 @@ const CITIES = {
 };
 
 const DEFAULTS = {
+  theme:'default', // default/dracula/nord/solarized
   newsLayout:'list', city:'auto', tempUnit:'celsius',
   fontSize:'normal', panelWidth:460, blurPx:16, bgOpacity:88,
   accentColor:'#4db8ff', showWeather:true, showClock:true,
@@ -34,7 +35,10 @@ const DEFAULTS = {
   showCrypto:false, showQuote:false,
   showParasha:false, showDafYomi:false, showDateConverter:false,
   showGematria:false, showTodo:false, showStopwatch:false,
-  showDice:false,
+  showDice:false, showIcal:false, showSysMonitor:false,
+  showOref: false, orefSound: true, orefLocalOnly: false,
+  launcherDraggable: false,
+  launcherDraggedX: null, launcherDraggedY: null,
   // Config
   stockSymbols:'TA35.TA,BTC-USD,MSFT,AAPL',
   widgetOrder:[],
@@ -46,6 +50,13 @@ const DEFAULTS = {
   widgetSize:'normal', widgetCorner:'rounded',
   // Custom RSS feeds [{url, category, label}]
   customFeeds:[],
+  icalUrl: '', globalShortcut: 'CommandOrControl+W',
+  blockedSources: [], // list of source names to hide
+  blockedKeywords: [], // list of title fragments/tags to hide
+  zmanimAlerts: {}, // { "sunrise": 10, "sunset": 15 } = minutes before
+  omerFormat: 'letters', // 'letters' (גימטריה) or 'numbers'
+  omerNusach: 'la', // 'la' (לעומר) or 'ba' (בעומר)
+  alertSound: 'chime', // 'chime','bell','soft','urgent','silent'
 };
 let S = { ...DEFAULTS };
 try { Object.assign(S, JSON.parse(localStorage.getItem('widget-settings') || '{}')); } catch {}
@@ -120,9 +131,11 @@ document.addEventListener('click', e => {
 
 // ===== APPLY SETTINGS =====
 function applySettings() {
-  document.body.className = document.body.className.replace(/font-\w+/g,'').trim();
-  document.body.classList.add('font-' + S.fontSize);
-  document.body.classList.toggle('light', !dark);
+  document.body.className = `theme-${S.theme} font-${S.fontSize} ${S.widgetSize==='compact'?'widget-compact':''} ${S.widgetCorner==='square'?'widget-square':''}`;
+  if (S.theme==='auto') applyTheme();
+  document.body.classList.toggle('launcher-left', S.launcherSide === 'left');
+  // Only apply light mode for default theme; named themes are inherently dark
+  if (S.theme === 'default') document.body.classList.toggle('light', !dark);
   document.documentElement.style.setProperty('--blur-px',    S.blurPx + 'px');
   document.documentElement.style.setProperty('--bg-opacity', S.bgOpacity / 100);
   document.documentElement.style.setProperty('--accent',     S.accentColor);
@@ -175,6 +188,9 @@ function applySettings() {
   toggleWidgetVis('todoWidget',       S.showTodo);
   toggleWidgetVis('stopwatchWidget',  S.showStopwatch);
   toggleWidgetVis('diceWidget',       S.showDice);
+  toggleWidgetVis('orefWidget',       S.showOref);
+  toggleWidgetVis('icalWidget',       S.showIcal);
+  toggleWidgetVis('sysMonitorWidget', S.showSysMonitor);
 
   // Widget style
   document.body.classList.toggle('widget-compact', S.widgetSize === 'compact');
@@ -197,6 +213,58 @@ function applySettings() {
 
 function toggleWidgetVis(id, show) {
   document.getElementById(id)?.classList.toggle('hidden', !show);
+}
+
+const WIDGET_IDS_BY_SETTING = {
+  showWeather: 'weatherWidget',
+  showClock: 'clockWidget',
+  showNews: 'newsWidget',
+  showZmanim: 'zmanimWidget',
+  showCalculator: 'calcWidget',
+  showTimer: 'timerWidget',
+  showForex: 'forexWidget',
+  showNotes: 'notesWidget',
+  showWorldClock: 'worldClockWidget',
+  showCalendar: 'calendarWidget',
+  showMultiNotes: 'multiNotesWidget',
+  showStocks: 'stocksWidget',
+  showUVAir: 'uvAirWidget',
+  showYTMusic: 'ytMusicWidget',
+  showOmer: 'omerWidget',
+  showAlarm: 'alarmWidget',
+  showAPOD: 'apodWidget',
+  showCrypto: 'cryptoWidget',
+  showQuote: 'quoteWidget',
+  showParasha: 'parashaWidget',
+  showDafYomi: 'dafYomiWidget',
+  showDateConverter: 'dateConverterWidget',
+  showGematria: 'gematriaWidget',
+  showTodo: 'todoWidget',
+  showStopwatch: 'stopwatchWidget',
+  showDice: 'diceWidget',
+  showOref: 'orefWidget',
+  showIcal: 'icalWidget',
+  showSysMonitor: 'sysMonitorWidget',
+};
+
+function revealEnabledWidget(settingId) {
+  const widget = document.getElementById(WIDGET_IDS_BY_SETTING[settingId] || '');
+  if (!widget) return;
+  widget.querySelector('.widget-body')?.classList.remove('collapsed');
+  widget.querySelector('.expand-btn')?.classList.add('expanded');
+  widget.classList.remove('widget-added');
+  void widget.offsetWidth;
+  widget.classList.add('widget-added');
+  requestAnimationFrame(() => {
+    widget.scrollIntoView({ behavior:'smooth', block:'start', inline:'nearest' });
+  });
+  clearTimeout(widget._revealTimer);
+  widget._revealTimer = setTimeout(() => widget.classList.remove('widget-added'), 1400);
+}
+
+function revealEnabledWidgetFromLibrary(settingId, sourceEl) {
+  if (!sourceEl?.closest('#libraryPanel')) return;
+  // Don't auto-close the library — let the user enable multiple widgets at once
 }
 
 // ===== WIDGET COLLAPSE =====
@@ -239,6 +307,12 @@ document.getElementById('themeBtn').addEventListener('click', () => {
   applyTheme();
 });
 document.getElementById('closeBtn').addEventListener('click', () => window.api.togglePanel());
+
+// Drag persistence
+window.api.onSaveLauncherDragPos((x, y) => {
+  S.launcherDraggedX = x; S.launcherDraggedY = y;
+  saveSettings();
+});
 
 // ===== CLOCK =====
 const DAYS   = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -338,7 +412,9 @@ async function loadZmanim() {
     }
     let nextKey=null, minDiff=Infinity;
     for (const {key} of ZMANIM_LABELS) {
-      const diff = timeMins(z[key]) - nowMins;
+      const tm = timeMins(z[key]);
+      if (tm === 9999) continue;
+      const diff = tm - nowMins;
       if (diff>0 && diff<minDiff) { minDiff=diff; nextKey=key; }
     }
 
@@ -346,11 +422,27 @@ async function loadZmanim() {
       const t = z[key]||'—';
       const passed = timeMins(t) < nowMins;
       const isNext = key === nextKey;
-      return `<div class="zmanim-row${passed?' passed':''}${isNext?' highlight':''}">
-        <span class="zmanim-name">${label}</span>
+      const hasAlert = S.zmanimAlerts[key] != null;
+      return `<div class="zmanim-row${passed?' passed':''}${isNext?' highlight':''}" data-zkey="${key}" data-ztime="${t}" data-zlabel="${label}">
+        <span class="zmanim-name">${hasAlert?'<span class="zmanim-bell" title="התראה '+S.zmanimAlerts[key]+' דק׳ לפני">🔔</span>':''}${label}</span>
         <span class="zmanim-time">${t}</span>
       </div>`;
     }).join('');
+
+    // Right-click context menu for zmanim alerts
+    grid.querySelectorAll('.zmanim-row').forEach(row => {
+      row.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const key = row.dataset.zkey;
+        const time = row.dataset.ztime;
+        const label = row.dataset.zlabel;
+        if (!key || time === '—') return;
+        showZmanimAlertMenu(e, key, label, time);
+      });
+    });
+
+    // Schedule notifications for today
+    scheduleZmanimAlerts(z);
 
     const shabbatBox = document.getElementById('shabbatBox');
     if (S.showShabbat && (z.dow===5||z.dow===6) && (z.candles||z.havdalah)) {
@@ -363,6 +455,106 @@ async function loadZmanim() {
   } catch(e) {
     loading.classList.add('hidden');
     grid.innerHTML = `<div style="color:var(--tx3);font-size:12px;padding:8px">שגיאה: ${e.message}</div>`;
+  }
+}
+
+// ===== ALERT SOUNDS =====
+const ALERT_SOUNDS = {
+  chime:  { name:'צלצול',   fn(ctx){ const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(523,ctx.currentTime);o.frequency.setValueAtTime(659,ctx.currentTime+0.15);o.frequency.setValueAtTime(784,ctx.currentTime+0.3);g.gain.setValueAtTime(0.4,ctx.currentTime);g.gain.linearRampToValueAtTime(0.01,ctx.currentTime+1);o.start(ctx.currentTime);o.stop(ctx.currentTime+1);}},
+  bell:   { name:'פעמון',   fn(ctx){ [0,0.25].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(830,ctx.currentTime+t);g.gain.setValueAtTime(0.5,ctx.currentTime+t);g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+t+0.6);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.6);});}},
+  soft:   { name:'עדין',    fn(ctx){ const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(440,ctx.currentTime);g.gain.setValueAtTime(0.2,ctx.currentTime);g.gain.linearRampToValueAtTime(0.3,ctx.currentTime+0.3);g.gain.linearRampToValueAtTime(0.01,ctx.currentTime+1.5);o.start(ctx.currentTime);o.stop(ctx.currentTime+1.5);}},
+  urgent: { name:'דחוף',    fn(ctx){ [0,0.15,0.3,0.45].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='square';o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(880,ctx.currentTime+t);g.gain.setValueAtTime(0.3,ctx.currentTime+t);g.gain.linearRampToValueAtTime(0.01,ctx.currentTime+t+0.1);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.12);});}},
+  silent: { name:'שקט',     fn(){}},
+};
+
+function playAlertSound(soundId) {
+  if (!soundId || soundId === 'silent') return;
+  const s = ALERT_SOUNDS[soundId] || ALERT_SOUNDS.chime;
+  try { const ctx = new (window.AudioContext||window.webkitAudioContext)(); s.fn(ctx); } catch {}
+}
+
+// ===== ZMANIM ALERTS =====
+let zmanimAlertTimers = [];
+
+function showZmanimAlertMenu(e, key, label, timeStr) {
+  // Remove existing menu
+  document.getElementById('zmanimAlertMenu')?.remove();
+
+  const existing = S.zmanimAlerts[key];
+  const menu = document.createElement('div');
+  menu.id = 'zmanimAlertMenu';
+  menu.className = 'zmanim-alert-menu';
+  menu.innerHTML = `
+    <div class="zam-title">🔔 התראה עבור ${label} (${timeStr})</div>
+    <div class="zam-options">
+      ${[5,10,15,20,30].map(m => `<button class="zam-opt${existing===m?' active':''}" data-min="${m}">${m} דק׳ לפני</button>`).join('')}
+    </div>
+    ${existing != null ? '<button class="zam-remove">❌ הסר התראה</button>' : ''}
+  `;
+
+  // Position near click
+  const panel = document.getElementById('panel');
+  const panelRect = panel.getBoundingClientRect();
+  menu.style.top = Math.min(e.clientY, panelRect.bottom - 160) + 'px';
+  menu.style.right = (panelRect.right - e.clientX) + 'px';
+  panel.appendChild(menu);
+
+  menu.querySelectorAll('.zam-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      S.zmanimAlerts[key] = +btn.dataset.min;
+      saveSettings();
+      menu.remove();
+      if (S.showZmanim) loadZmanim();
+    });
+  });
+  menu.querySelector('.zam-remove')?.addEventListener('click', () => {
+    delete S.zmanimAlerts[key];
+    saveSettings();
+    menu.remove();
+    if (S.showZmanim) loadZmanim();
+  });
+
+  // Close on outside click
+  setTimeout(() => {
+    const close = e2 => { if (!menu.contains(e2.target)) { menu.remove(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
+}
+
+function scheduleZmanimAlerts(z) {
+  // Clear previous timers
+  zmanimAlertTimers.forEach(t => clearTimeout(t));
+  zmanimAlertTimers = [];
+
+  if (!Object.keys(S.zmanimAlerts).length) return;
+
+  // Request notification permission
+  if (Notification.permission === 'default') Notification.requestPermission();
+
+  const now = new Date();
+  const nowMs = now.getTime();
+
+  for (const [key, minsBefore] of Object.entries(S.zmanimAlerts)) {
+    const timeStr = z[key];
+    if (!timeStr || timeStr === '—') continue;
+    const [h, m] = timeStr.split(':').map(Number);
+    const target = new Date(now);
+    target.setHours(h, m, 0, 0);
+    const alertMs = target.getTime() - minsBefore * 60000;
+    const delay = alertMs - nowMs;
+    if (delay <= 0) continue; // already passed
+
+    const label = ZMANIM_LABELS.find(l => l.key === key)?.label || key;
+    const tid = setTimeout(() => {
+      playAlertSound(S.alertSound);
+      if (Notification.permission === 'granted') {
+        new Notification(`🔔 ${label} בעוד ${minsBefore} דקות`, {
+          body: `${label} ב-${timeStr}`,
+          silent: true,
+        });
+      }
+    }, delay);
+    zmanimAlertTimers.push(tid);
   }
 }
 
@@ -392,7 +584,7 @@ function startTicker(text) {
   requestAnimationFrame(() => {
     tickerTrackW = track.offsetWidth;
     tickerTextW  = inner.scrollWidth;
-    tickerX = -tickerTextW; // start from left (off-screen left)
+    tickerX = tickerTrackW; // start from right edge so text immediately scrolls in
     if (tickerRAF) cancelAnimationFrame(tickerRAF);
     animateTicker();
   });
@@ -402,7 +594,7 @@ function animateTicker() {
   const inner = document.getElementById('tickerInner');
   if (!inner) return;
   tickerX += TICKER_SPEED;
-  if (tickerX > tickerTrackW) tickerX = -tickerTextW; // loop from left
+  if (tickerX > tickerTrackW) tickerX = -tickerTextW; // loop: reset to left edge
   inner.style.transform = `translateX(${tickerX}px)`;
   tickerRAF = requestAnimationFrame(animateTicker);
 }
@@ -436,7 +628,10 @@ function buildItem(item, i, extraClass='') {
         <div class="news-date">${esc(item.date)}</div>
       </div>
     </a>
-    <button class="news-dismiss-btn" data-link="${esc(item.link)}" title="הסר כתבה">✕</button>
+    <div class="news-actions">
+      <button class="news-dismiss-btn" data-link="${esc(item.link)}" title="סמן כנקרא"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <button class="news-block-btn" data-src="${esc(item.source)}" data-title="${esc(item.title)}" title="אל תציג יותר"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg></button>
+    </div>
   </div>`;
 }
 
@@ -444,8 +639,12 @@ function renderNews(items) {
   const list = document.getElementById('newsList');
   list.className = 'news-list layout-' + S.newsLayout;
   const q = searchQuery.trim().toLowerCase();
+  
+  // Filtering logic: 1. Dismissed (session) 2. Blocked Source 3. Blocked Keyword
   const filtered = (q ? items.filter(i=>i.title.toLowerCase().includes(q)||i.source.toLowerCase().includes(q)) : items)
-    .filter(i => !dismissedLinks.has(i.link));
+    .filter(i => !dismissedLinks.has(i.link))
+    .filter(i => !S.blockedSources.includes(i.source))
+    .filter(i => !S.blockedKeywords.some(kw => i.title.toLowerCase().includes(kw.toLowerCase())));
   if (!filtered.length) {
     list.innerHTML = `<div class="no-results">${q?`🔍 אין תוצאות עבור "${esc(q)}"` : 'אין פריטים'}</div>`;
     return;
@@ -466,6 +665,21 @@ function renderNews(items) {
   }
   // Eagerly load og:images for items without images
   fillMissingImages(visible);
+  
+  // Attach dismiss/block events
+  list.querySelectorAll('.news-dismiss-btn').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation(); e.preventDefault();
+    dismissedLinks.add(btn.dataset.link);
+    renderNews(items);
+  }));
+  list.querySelectorAll('.news-block-btn').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation(); e.preventDefault();
+    const src = btn.dataset.src;
+    // const title = btn.dataset.title;
+    if (!S.blockedSources.includes(src)) S.blockedSources.push(src);
+    saveSettings();
+    renderNews(items);
+  }));
 }
 
 function setupLoadMoreObserver(items) {
@@ -606,7 +820,22 @@ const libraryPanel = document.getElementById('libraryPanel');
 document.getElementById('settingsBtn').addEventListener('click', () => settingsPanel.classList.add('open'));
 document.getElementById('closeSettings').addEventListener('click', () => settingsPanel.classList.remove('open'));
 document.getElementById('libraryBtn').addEventListener('click', () => libraryPanel.classList.add('open'));
-document.getElementById('closeLibrary').addEventListener('click', () => libraryPanel.classList.remove('open'));
+document.getElementById('closeLibrary').addEventListener('click', () => {
+  libraryPanel.classList.remove('open');
+  // Scroll to the first visible (recently enabled) widget that isn't already in view
+  const firstNew = [...document.querySelectorAll('#leftCol > .widget:not(.hidden)')].pop();
+  if (firstNew) setTimeout(() => firstNew.scrollIntoView({ behavior:'smooth', block:'nearest' }), 100);
+});
+
+document.querySelectorAll('#libraryPanel .s-row').forEach(row => {
+  const input = row.querySelector('.toggle input[type="checkbox"]');
+  if (!input) return;
+  row.classList.add('clickable-toggle-row');
+  row.addEventListener('click', e => {
+    if (e.target.closest('input, .toggle, .track, button, a, select, textarea')) return;
+    input.click();
+  });
+});
 
 document.addEventListener('keydown', e => {
   if (e.key==='Escape') {
@@ -628,6 +857,11 @@ function syncSettingsUI() {
   document.getElementById('dualWidthVal').textContent = S.dualWidth;
   document.getElementById('launcherBrightSlider').value = S.launcherBright;
   document.getElementById('launcherBrightVal').textContent = S.launcherBright;
+  const icalIn = document.getElementById('icalUrlInput'); if (icalIn) icalIn.value = S.icalUrl || '';
+  const gsIn = document.getElementById('globalShortcutInput'); if (gsIn) gsIn.value = S.globalShortcut || '';
+  document.getElementById('showIcal').checked       = S.showIcal;
+  document.getElementById('showSysMonitor').checked = S.showSysMonitor;
+  if (S.stockSymbols) document.getElementById('stockSymbolsInput').value = S.stockSymbols;
   document.getElementById('showWeather').checked  = S.showWeather;
   document.getElementById('showClock').checked    = S.showClock;
   document.getElementById('showNews').checked     = S.showNews;
@@ -654,6 +888,17 @@ function syncSettingsUI() {
   document.getElementById('showAPOD').checked      = S.showAPOD;
   document.getElementById('showCrypto').checked    = S.showCrypto;
   document.getElementById('showQuote').checked     = S.showQuote;
+  document.getElementById('showParasha').checked    = S.showParasha;
+  document.getElementById('showDafYomi').checked    = S.showDafYomi;
+  document.getElementById('showDateConverter').checked = S.showDateConverter;
+  document.getElementById('showGematria').checked   = S.showGematria;
+  document.getElementById('showTodo').checked       = S.showTodo;
+  document.getElementById('showStopwatch').checked  = S.showStopwatch;
+  document.getElementById('showDice').checked       = S.showDice;
+  document.getElementById('showOref').checked       = S.showOref;
+  document.getElementById('orefSound').checked      = S.orefSound;
+  document.getElementById('orefLocalOnly').checked  = S.orefLocalOnly;
+  document.getElementById('launcherDraggable').checked = S.launcherDraggable;
   document.querySelectorAll('[data-layout]').forEach(b  => b.classList.toggle('active', b.dataset.layout  ===S.newsLayout));
   document.querySelectorAll('[data-fontsize]').forEach(b=> b.classList.toggle('active', b.dataset.fontsize===S.fontSize));
   document.querySelectorAll('[data-width]').forEach(b   => b.classList.toggle('active', +b.dataset.width  ===S.panelWidth));
@@ -814,6 +1059,7 @@ document.getElementById('refreshInterval').addEventListener('change', e => {
     S[id] = e.target.checked;
     saveSettings();
     applySettings();
+    if (e.target.checked) revealEnabledWidgetFromLibrary(id, e.target);
     if (id === 'showForex' && S.showForex) loadForex();
     if (id === 'showWorldClock' && S.showWorldClock) startWorldClock();
   })
@@ -827,6 +1073,7 @@ document.getElementById('refreshInterval').addEventListener('change', e => {
     if (rEl) rEl.checked = e.target.checked;
     saveSettings();
     applySettings();
+    if (e.target.checked) revealEnabledWidgetFromLibrary(rid, e.target);
     if (rid === 'showZmanim' && S.showZmanim) loadZmanim();
   })
 );
@@ -849,9 +1096,14 @@ document.querySelectorAll('.calc-btn').forEach(btn => {
       return;
     }
     if (c === '+-') {
-      if (calcExpr && !calcExpr.startsWith('-')) calcExpr = '-' + calcExpr;
-      else if (calcExpr.startsWith('-')) calcExpr = calcExpr.substring(1);
-      calcDisplay.textContent = calcExpr || '0';
+      // Negate only the last number in the expression
+      const m = calcExpr.match(/^(.*[+\-*/])(-?)(\d*\.?\d+)$/);
+      if (m) {
+        calcExpr = m[1] + (m[2] ? '' : '-') + m[3];
+      } else if (calcExpr) {
+        calcExpr = calcExpr.startsWith('-') ? calcExpr.substring(1) : '-' + calcExpr;
+      }
+      calcDisplay.textContent = calcExpr.replace(/\*/g,'×').replace(/\//g,'÷') || '0';
       return;
     }
     if (c === '*' || c === '/' || c === '+' || c === '-') {
@@ -967,22 +1219,127 @@ document.getElementById('customFeedList').addEventListener('click', e => {
   renderCustomFeeds();
 });
 
+// ===== OREF ALERTS =====
+let orefInterval = null;
+let lastOrefId = null;
+let lastShownNotifId = null;
+async function loadOref() {
+  if (!S.showOref) {
+    if (orefInterval) { clearInterval(orefInterval); orefInterval=null; }
+    return;
+  }
+  if (!orefInterval) orefInterval = setInterval(fetchOrefData, 4000);
+  fetchOrefData();
+}
+
+async function fetchOrefData() {
+  const bd = document.getElementById('orefBody');
+  if (!bd || !S.showOref) return;
+  try {
+    const d = await window.api.fetchOref();
+    if (!d || !d.data || d.data.length === 0) {
+       bd.innerHTML = '<div style="color:var(--tx2);font-size:12px;text-align:center;padding:10px">אין התרעות פעילות ברחבי הארץ</div>';
+       return;
+    }
+    let cities = d.data;
+    if (S.orefLocalOnly && S.city !== 'auto' && CITIES[S.city]) {
+       const cityName = CITIES[S.city].name;
+       if (!cities.includes(cityName)) {
+         bd.innerHTML = `<div style="color:var(--tx2);font-size:12px;text-align:center;padding:10px">אין התרעות פעילות ב${cityName}</div>`;
+         return;
+       }
+       cities = [cityName];
+    }
+    
+    if (S.orefSound && d.id !== lastOrefId && d.cat !== "10") {
+      playAlertSound('urgent');
+    }
+    lastOrefId = d.id;
+
+    const isEnd = d.cat === "10";
+
+    // Save to history (only real alerts, not "event ended")
+    if (!isEnd && d.id !== lastShownNotifId) {
+      let hist = [];
+      try { hist = JSON.parse(localStorage.getItem('oref-history') || '[]'); } catch {}
+      const entry = { id: d.id, title: d.title, desc: d.desc, cities: cities.slice(0,8), time: Date.now() };
+      hist = [entry, ...hist.filter(h => h.id !== d.id)].slice(0, 20);
+      try { localStorage.setItem('oref-history', JSON.stringify(hist)); } catch {}
+      renderOrefHistory();
+    }
+
+    // Web Notification when panel may be hidden
+    if (S.orefSound && d.id !== lastShownNotifId && !isEnd) {
+      lastShownNotifId = d.id;
+      if (Notification.permission === 'granted') {
+        new Notification('🚨 ' + d.title, { body: cities.slice(0, 5).join(', '), silent: true });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(p => {
+          if (p === 'granted') new Notification('🚨 ' + d.title, { body: cities.slice(0, 5).join(', '), silent: true });
+        });
+      }
+    }
+    bd.innerHTML = `<div class="oref-alert ${isEnd ? 'end' : 'active'}">
+         <div class="oref-title">${esc(d.title)}</div>
+         <div class="oref-desc">${esc(d.desc)}</div>
+         <div class="oref-cities">${cities.map(c => `<span>${esc(c)}</span>`).join('')}</div>
+      </div>`;
+  } catch (e) {
+    bd.innerHTML = '<div class="no-results" style="font-size:12px">שגיאה בתקשורת לשירות</div>';
+  }
+}
+
+function renderOrefHistory() {
+  const list = document.getElementById('orefHistoryList');
+  if (!list) return;
+  let hist = [];
+  try { hist = JSON.parse(localStorage.getItem('oref-history') || '[]'); } catch {}
+  if (!hist.length) {
+    list.innerHTML = '<div style="color:var(--tx3);font-size:12px;padding:6px 0;text-align:center">אין התרעות שמורות</div>';
+    return;
+  }
+  list.innerHTML = hist.map(h => {
+    const t = new Date(h.time).toLocaleString('he-IL', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
+    return `<div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:12px">
+      <div style="font-weight:600; color:#ff6b6b">${esc(h.title)}</div>
+      <div style="color:var(--tx3); font-size:10px">${t}</div>
+      <div style="color:var(--tx2); margin-top:2px">${h.cities.map(c=>esc(c)).join(', ')}</div>
+    </div>`;
+  }).join('');
+}
+
+// Oref history button toggle
+document.getElementById('orefHistoryBtn')?.addEventListener('click', e => {
+  e.stopPropagation();
+  const histBody = document.getElementById('orefHistoryBody');
+  if (!histBody) return;
+  const isOpen = !histBody.classList.contains('hidden');
+  histBody.classList.toggle('hidden', isOpen);
+  if (!isOpen) renderOrefHistory();
+});
+
+document.getElementById('clearOrefHistory')?.addEventListener('click', () => {
+  localStorage.removeItem('oref-history');
+  renderOrefHistory();
+});
+
+renderOrefHistory();
+
 // ===== INIT =====
+let sysMonitorInterval = null; // must be declared before startSysMonitor() call below
 applySettings();
 syncSettingsUI();
 renderCustomFeeds();
 window.api.setLauncherSide(S.launcherSide);
 window.api.setLauncherOpacity(S.launcherBright / 100);
 window.api.setLauncherTextColor(S.launcherTextColor);
+if (window.api.setLauncherDraggable) window.api.setLauncherDraggable(S.launcherDraggable);
 
-// Dismiss button delegation on news list
-document.getElementById('newsList').addEventListener('click', e => {
-  const btn = e.target.closest('.news-dismiss-btn');
-  if (!btn) return;
-  e.preventDefault(); e.stopPropagation();
-  dismissedLinks.add(btn.dataset.link);
-  if (newsCache[currentCat]) renderNews(newsCache[currentCat].items);
-});
+// Persist dragged launcher position (listener already registered above)
+// Restore saved drag position on startup
+if (S.launcherDraggable && S.launcherDraggedX !== null && S.launcherDraggedY !== null) {
+  window.api.restoreLauncherDragPos(S.launcherDraggedX, S.launcherDraggedY);
+}
 
 loadNews('news');
 if (S.showZmanim)      loadZmanim();
@@ -1000,17 +1357,105 @@ if (S.showQuote)       loadQuote();
 if (S.showParasha)     loadParasha();
 if (S.showDafYomi)     loadDafYomi();
 if (S.showTodo)        renderTodo();
+if (S.showOref)        loadOref();
+if (S.showIcal)        loadIcal();
+if (S.showSysMonitor)  startSysMonitor();
+
+// Global Shortcut startup
+if (S.globalShortcut && window.api.setGlobalShortcut) window.api.setGlobalShortcut(S.globalShortcut);
+
+// ===== NEW WIDGETS LOGIC & FETCHERS =====
+// System Monitor (variable hoisted above init to avoid TDZ error)
+async function updateSysMonitor() {
+  if (!S.showSysMonitor) return;
+  const stats = await window.api.getSystemStats();
+  if (!stats || stats.error) return;
+  document.getElementById('cpuVal').textContent = stats.cpuPct + '%';
+  document.getElementById('cpuFill').style.width = stats.cpuPct + '%';
+  document.getElementById('ramVal').textContent = stats.ramPct + '%';
+  document.getElementById('ramFill').style.width = stats.ramPct + '%';
+  document.getElementById('ramText').textContent = `(${stats.ramGb} / ${stats.totalGb} GB)`;
+}
+function startSysMonitor() {
+  if (sysMonitorInterval) clearInterval(sysMonitorInterval);
+  updateSysMonitor();
+  sysMonitorInterval = setInterval(updateSysMonitor, 3000);
+}
+
+// iCal Events
+async function loadIcal() {
+  if (!S.showIcal) return;
+  const list = document.getElementById('icalList');
+  const loading = document.getElementById('icalLoading');
+  if (!S.icalUrl) {
+    loading.classList.add('hidden');
+    list.innerHTML = '<div class="no-results" style="padding:10px">הגדר קישור iCal בהגדרות כדי לראות אירועים.</div>';
+    return;
+  }
+  loading.classList.remove('hidden'); list.innerHTML = '';
+  try {
+    const data = await window.api.fetchIcal(S.icalUrl);
+    loading.classList.add('hidden');
+    if (data.error || !data.events || !data.events.length) {
+      list.innerHTML = `<div class="no-results" style="padding:10px">${data.error || 'אין אירועים קרובים'}</div>`;
+      return;
+    }
+    const now = Date.now();
+    const todayStr = new Date().toLocaleDateString('he-IL');
+    const tomorrowStr = new Date(now + 86400000).toLocaleDateString('he-IL');
+    
+    list.innerHTML = data.events.map(ev => {
+      const d = new Date(ev.dtstart);
+      const dStr = d.toLocaleDateString('he-IL');
+      const tStr = (d.getHours()===0 && d.getMinutes()===0) ? 'כל היום' : d.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+      const relDay = dStr === todayStr ? 'היום' : (dStr === tomorrowStr ? 'מחר' : dStr);
+      return `<div class="ical-item" style="padding:8px 10px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:2px">
+        <div style="font-weight:600; font-size:13px; color:var(--tx1)">${esc(ev.summary)}</div>
+        <div style="font-size:11px; color:var(--tx2); display:flex; justify-content:space-between">
+          <span>${relDay} · ${tStr}</span>
+          <span>${esc(ev.location) || ''}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    loading.classList.add('hidden');
+    list.innerHTML = '<div class="no-results" style="padding:10px">שגיאה בטעינת לוח שנה</div>';
+  }
+}
+
+// Updates
+document.getElementById('checkUpdateBtn')?.addEventListener('click', async (e) => {
+  const btn = e.target;
+  const textEl = document.getElementById('versionText');
+  const oldText = btn.textContent;
+  btn.textContent = 'בודק...'; btn.disabled = true;
+  try {
+    const res = await window.api.checkForUpdate();
+    if (res.hasUpdate) {
+      textEl.innerHTML = `<span style="color:#ff6b6b">יש עדכון! (${res.latest})</span>`;
+      btn.textContent = 'הורד עדכון';
+      btn.onclick = () => window.api.openExternal('https://github.com/haredi-widgets/releases/latest');
+    } else {
+      textEl.textContent = `מעודכן (v${res.current})`;
+      btn.textContent = 'מעודכן ✔';
+    }
+  } catch {
+    textEl.textContent = 'שגיאה בבדיקה'; btn.textContent = oldText;
+  }
+  btn.disabled = false;
+});
 
 // ===== NEW WIDGET SETTINGS LISTENERS =====
 const NEW_WIDGET_IDS = ['showCalendar','showMultiNotes','showStocks',
   'showUVAir','showYTMusic','showOmer','showAlarm','showAPOD','showCrypto','showQuote',
   'showParasha','showDafYomi','showDateConverter','showGematria','showTodo',
-  'showStopwatch','showDice'];
+  'showStopwatch','showDice','showOref','showIcal','showSysMonitor'];
 
 NEW_WIDGET_IDS.forEach(id => {
   document.getElementById(id)?.addEventListener('change', e => {
     S[id] = e.target.checked;
     saveSettings(); applySettings();
+    if (e.target.checked) revealEnabledWidgetFromLibrary(id, e.target);
     if (id==='showCalendar'   && S.showCalendar)   renderCalendar();
     if (id==='showMultiNotes' && S.showMultiNotes) renderNotes();
     if (id==='showStocks'     && S.showStocks)     loadStocks();
@@ -1023,7 +1468,27 @@ NEW_WIDGET_IDS.forEach(id => {
     if (id==='showParasha'       && S.showParasha)       loadParasha();
     if (id==='showDafYomi'       && S.showDafYomi)       loadDafYomi();
     if (id==='showTodo'          && S.showTodo)          renderTodo();
+    if (id==='showOref'          && S.showOref)          loadOref();
+    if (id==='showSysMonitor'    && S.showSysMonitor)    startSysMonitor();
+    if (id==='showIcal'          && S.showIcal)          loadIcal();
   });
+});
+
+['orefSound', 'orefLocalOnly', 'launcherDraggable'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', e => {
+    S[id] = e.target.checked; saveSettings();
+    if (id === 'launcherDraggable' && window.api.setLauncherDraggable) window.api.setLauncherDraggable(S.launcherDraggable);
+    if (id.startsWith('oref') && S.showOref) loadOref();
+  });
+});
+
+document.getElementById('icalUrlInput')?.addEventListener('change', e => {
+  S.icalUrl = e.target.value.trim(); saveSettings();
+  if (S.showIcal) loadIcal();
+});
+document.getElementById('globalShortcutInput')?.addEventListener('change', e => {
+  S.globalShortcut = e.target.value.trim(); saveSettings();
+  if (window.api.setGlobalShortcut) window.api.setGlobalShortcut(S.globalShortcut);
 });
 
 // Widget style buttons
@@ -1034,6 +1499,20 @@ document.querySelectorAll('[data-wsize]').forEach(b => b.addEventListener('click
 document.querySelectorAll('[data-wcorner]').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('[data-wcorner]').forEach(x => x.classList.remove('active'));
   b.classList.add('active'); S.widgetCorner = b.dataset.wcorner; saveSettings(); applySettings();
+}));
+document.querySelectorAll('[data-theme]').forEach(b => {
+  if (b.dataset.theme === S.theme) b.classList.add('active');
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-theme]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); S.theme = b.dataset.theme; saveSettings(); applySettings();
+  });
+});
+
+// Alert sound buttons
+document.querySelectorAll('[data-asound]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-asound]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); S.alertSound = b.dataset.asound; saveSettings();
+  playAlertSound(S.alertSound); // preview
 }));
 
 // Lock panel
@@ -1275,13 +1754,18 @@ async function loadYtMusic() {
 }
 
 // ===== OMER COUNT =====
+function omerNum(n) {
+  if (S.omerFormat === 'letters') return hebrewNumeral(n);
+  return String(n);
+}
 function omerText(day) {
   if (day<1||day>49) return '';
+  const suffix = S.omerNusach === 'ba' ? 'בעומר' : 'לעומר';
   const weeks=Math.floor(day/7), days=day%7;
-  let txt = `היום ${day<=10?OMER_ONES[day]:OMER_TENS[day-10]} יום`;
-  if (weeks>0&&days>0) txt+=`, שהם ${OMER_ONES[weeks]} שבוע${weeks>1?'ות':''} ו${OMER_ONES[days]} ימים`;
-  else if (weeks>0) txt+=`, שהם ${OMER_ONES[weeks]} שבוע${weeks>1?'ות':''}`;
-  return txt+' לעומר';
+  let txt = `היום ${omerNum(day)} יום`;
+  if (weeks>0&&days>0) txt+=`, שהם ${omerNum(weeks)} שבוע${weeks>1?'ות':''} ו${omerNum(days)} ימים`;
+  else if (weeks>0) txt+=`, שהם ${omerNum(weeks)} שבוע${weeks>1?'ות':''}`;
+  return txt+' '+suffix;
 }
 async function loadOmer() {
   const disp=document.getElementById('omerDisplay'), heb=document.getElementById('omerHebrew'), wks=document.getElementById('omerWeeks');
@@ -1289,12 +1773,46 @@ async function loadOmer() {
   try {
     const o = await window.api.getOmer();
     if (!o.inOmer) { disp.textContent='לא בתקופת העומר'; heb.textContent=''; wks.textContent=''; return; }
-    disp.textContent = `יום ${o.day} מתוך 49`;
+    disp.textContent = `יום ${omerNum(o.day)} מתוך ${omerNum(49)}`;
     heb.textContent = omerText(o.day);
     const left = 49-o.day;
     wks.textContent = left>0 ? `נותרו ${left} ימים לשבועות` : '🎉 חג שבועות שמח!';
   } catch { disp.textContent='שגיאה'; }
 }
+
+// Omer settings popup
+document.getElementById('omerGearBtn')?.addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('omerSettingsPopup')?.remove();
+  const popup = document.createElement('div');
+  popup.id = 'omerSettingsPopup';
+  popup.className = 'mini-settings-popup';
+  popup.innerHTML = `
+    <div class="msp-header"><span class="msp-title">הגדרות ספירה</span><button class="msp-close">✕</button></div>
+    <div class="msp-row"><span>תצוגה:</span><div class="btn-group btn-group-sm">
+      <button class="bg-btn${S.omerFormat==='letters'?' active':''}" data-omer-fmt="letters">אותיות</button>
+      <button class="bg-btn${S.omerFormat==='numbers'?' active':''}" data-omer-fmt="numbers">מספרים</button>
+    </div></div>
+    <div class="msp-row"><span>נוסח:</span><div class="btn-group btn-group-sm">
+      <button class="bg-btn${S.omerNusach==='la'?' active':''}" data-omer-nus="la">לעומר</button>
+      <button class="bg-btn${S.omerNusach==='ba'?' active':''}" data-omer-nus="ba">בעומר</button>
+    </div></div>
+  `;
+  document.getElementById('omerWidget').appendChild(popup);
+  popup.querySelector('.msp-close').addEventListener('click', () => popup.remove());
+  popup.querySelectorAll('[data-omer-fmt]').forEach(b => b.addEventListener('click', () => {
+    popup.querySelectorAll('[data-omer-fmt]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); S.omerFormat = b.dataset.omerFmt; saveSettings(); loadOmer();
+  }));
+  popup.querySelectorAll('[data-omer-nus]').forEach(b => b.addEventListener('click', () => {
+    popup.querySelectorAll('[data-omer-nus]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); S.omerNusach = b.dataset.omerNus; saveSettings(); loadOmer();
+  }));
+  setTimeout(() => {
+    const close = ev => { if (!popup.contains(ev.target) && ev.target.id !== 'omerGearBtn') { popup.remove(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
+});
 
 // ===== ALARM / COUNTDOWN =====
 function alarmBeep() {
@@ -1514,8 +2032,12 @@ document.getElementById('coinFlip')?.addEventListener('click', () => {
 function syncNewSettingsUI() {
   const ssi=document.getElementById('stockSymbolsInput'); if (ssi) ssi.value=S.stockSymbols||'';
   NEW_WIDGET_IDS.forEach(id => { const el=document.getElementById(id); if(el) el.checked=S[id]; });
+  ['orefSound', 'orefLocalOnly', 'launcherDraggable'].forEach(id => {
+    const el=document.getElementById(id); if(el) el.checked=S[id];
+  });
   document.querySelectorAll('[data-wsize]').forEach(b=>b.classList.toggle('active',b.dataset.wsize===S.widgetSize));
   document.querySelectorAll('[data-wcorner]').forEach(b=>b.classList.toggle('active',b.dataset.wcorner===S.widgetCorner));
+  document.querySelectorAll('[data-asound]').forEach(b=>b.classList.toggle('active',b.dataset.asound===S.alertSound));
 }
 syncNewSettingsUI();
 
@@ -1528,6 +2050,11 @@ function applyWidgetOrder() {
     if (id === 'newsWidget') return; // newsWidget stays outside leftCol
     const el = document.getElementById(id);
     if (el) col.appendChild(el);
+  });
+  [...col.querySelectorAll(':scope > .widget')].forEach(el => {
+    if (!S.widgetOrder.includes(el.id) && el.id !== 'newsWidget') {
+      col.appendChild(el);
+    }
   });
 }
 

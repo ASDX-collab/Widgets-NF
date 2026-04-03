@@ -10,10 +10,9 @@
       background:rgba(255,255,255,0.08);
       backdrop-filter:blur(10px) saturate(160%); -webkit-backdrop-filter:blur(10px) saturate(160%);
       border:1px solid rgba(255,255,255,0.13); border-radius:11px; cursor:pointer;
-      transition:background 0.15s, border-color 0.15s, transform 0.1s;
+      transition:background 0.15s, border-color 0.15s;
     }
     .btn:hover { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.22); }
-    .btn:active { transform:scale(0.97); }
     .btn.open   { background:rgba(255,255,255,0.18); border-color:rgba(255,255,255,0.3); }
     .icon  { font-size:24px; line-height:1; flex-shrink:0; }
     .info  { display:flex; flex-direction:column; align-items:flex-start; min-width:0; }
@@ -43,8 +42,34 @@
     }
 
     // Left click = toggle panel
-    btn.addEventListener('click', () => window.api.togglePanel());
+    let isLauncherDraggable = false;
+    window.api.onSetLauncherDraggable(v => { isLauncherDraggable = v; });
 
+    let hasDragged = false;
+    let _dragStartX = 0, _dragStartY = 0;
+
+    btn.addEventListener('mousedown', e => {
+      if (e.button !== 0 || !isLauncherDraggable) return;
+      hasDragged = false;
+      _dragStartX = e.screenX; _dragStartY = e.screenY;
+      window.api.dragStart();
+      // Detect if user actually moved (so click isn't swallowed)
+      const onMouseMove = ev => {
+        if (Math.abs(ev.screenX - _dragStartX) > 3 || Math.abs(ev.screenY - _dragStartY) > 3) hasDragged = true;
+      };
+      const onMouseUp = () => {
+        window.api.dragEnd();
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
+    btn.addEventListener('click', () => {
+      if (hasDragged) { hasDragged = false; return; }
+      window.api.togglePanel();
+    });
     // Hover: show panel when trigger is hover
     btn.addEventListener('mouseenter', () => {
       if (trigger === 'hover') window.api.showPanel();

@@ -19,6 +19,13 @@ contextBridge.exposeInMainWorld('api', {
   fetchOgImage:         (url)            => ipcRenderer.invoke('fetch-og-image', url),
   getZmanim:            (lat, lon, cm)   => ipcRenderer.invoke('get-zmanim', lat, lon, cm),
   fetchForex:           ()               => ipcRenderer.invoke('fetch-forex'),
+  fetchOref:            ()               => ipcRenderer.invoke('fetch-oref'),
+  getLauncherPos:       ()               => ipcRenderer.invoke('get-launcher-pos'),
+  setLauncherPosAbs:    (x, y)           => ipcRenderer.send('set-launcher-pos-abs', x, y),
+  onSetLauncherDraggable:(cb)            => ipcRenderer.on('set-launcher-draggable', (_, v) => cb(v)),
+  setLauncherDraggable: (v)              => ipcRenderer.send('set-launcher-draggable', v),
+  onSaveLauncherDragPos:(cb)             => ipcRenderer.on('save-launcher-drag-pos', (_, x, y) => cb(x, y)),
+  restoreLauncherDragPos:(x, y)          => ipcRenderer.send('restore-launcher-drag-pos', x, y),
 
   // New widgets
   getHebrewMonth:       (y, m)           => ipcRenderer.invoke('get-hebrew-month', y, m),
@@ -31,6 +38,10 @@ contextBridge.exposeInMainWorld('api', {
   fetchQuote:           ()               => ipcRenderer.invoke('fetch-quote'),
   getParasha:           ()               => ipcRenderer.invoke('get-parasha'),
   getDafYomi:           ()               => ipcRenderer.invoke('get-daf-yomi'),
+  fetchIcal:            (url)            => ipcRenderer.invoke('fetch-ical', url),
+  getSystemStats:       ()               => ipcRenderer.invoke('get-system-stats'),
+  checkForUpdate:       ()               => ipcRenderer.invoke('check-for-update'),
+  setGlobalShortcut:    (accel)          => ipcRenderer.send('set-global-shortcut', accel),
   setPanelLocked:     (v)    => ipcRenderer.send('set-panel-locked', v),
   showPanel:          ()     => ipcRenderer.send('show-panel'),
   hidePanel:          ()     => ipcRenderer.send('hide-panel'),
@@ -63,6 +74,10 @@ contextBridge.exposeInMainWorld('api', {
   onSetCorner:   (cb) => ipcRenderer.on('set-corner',    (_, c) => cb(c)),
   onSetShowIcon: (cb) => ipcRenderer.on('set-show-icon', (_, v) => cb(v)),
   onSetShowCity: (cb) => ipcRenderer.on('set-show-city', (_, v) => cb(v)),
+
+  // Drag (main-process handles movement via screen.getCursorScreenPoint)
+  dragStart: () => ipcRenderer.send('drag-start'),
+  dragEnd:   () => ipcRenderer.send('drag-end'),
 
   // Auto-start with Windows
   getLoginItem: ()        => ipcRenderer.invoke('get-login-item'),

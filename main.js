@@ -2,12 +2,14 @@ const { app, BrowserWindow, ipcMain, screen, shell, Menu, Tray, nativeImage, nat
 const path = require('path');
 const https = require('https');
 const http  = require('http');
+const zlib  = require('zlib');
 
 let panelWindow   = null;
 let launcherWindow = null;
 let tray          = null;
 let panelVisible    = false;
 let panelLocked     = false;
+let panelBlurTimer  = null;
 let currentLauncherW = 140;
 let currentLauncherH = 52;
 let currentLauncherVPos   = 'bottom'; // top / center / bottom
@@ -35,19 +37,36 @@ function withTimeout(promise, ms) {
 function fetchUrl(url, redirects = 6, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     if (!redirects) return reject(new Error('Too many redirects'));
-    const lib = url.startsWith('https') ? https : http;
-    const headers = Object.assign({
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-    }, extraHeaders);
-    const req = lib.get(url, { headers, timeout:12000 }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location)
-        return fetchUrl(res.headers.location, redirects-1, extraHeaders).then(resolve).catch(reject);
-      res.setEncoding('utf8');
-      let d = ''; res.on('data', c => d+=c); res.on('end', () => resolve(d));
-    });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    try {
+      const parsed = new URL(url);
+      const lib = parsed.protocol === 'https:' ? https : http;
+      const headers = Object.assign({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Encoding': 'gzip, deflate',
+      }, extraHeaders);
+
+      const req = lib.get(url, { headers, timeout:12000 }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const nextUrl = new URL(res.headers.location, url).href;
+          return fetchUrl(nextUrl, redirects - 1, extraHeaders).then(resolve).catch(reject);
+        }
+        if (res.statusCode !== 200) {
+           return reject(new Error(`Server returned ${res.statusCode}`));
+        }
+
+        let stream = res;
+        const enc = res.headers['content-encoding'];
+        if (enc === 'gzip') stream = res.pipe(zlib.createGunzip());
+        else if (enc === 'deflate') stream = res.pipe(zlib.createInflate());
+
+        let d = Buffer.alloc(0);
+        stream.on('data', c => { d = Buffer.concat([d, c]); });
+        stream.on('end', () => resolve(d.toString('utf8')));
+        stream.on('error', reject);
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    } catch(e) { reject(e); }
   });
 }
 
@@ -96,7 +115,8 @@ function cleanText(s) {
   if (!s) return '';
   return s.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')
           .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
-          .replace(/&#\d+;/g,'').replace(/\s+/g,' ').trim();
+          .replace(/&#39;/g,"'").replace(/&#039;/g,"'")
+          .replace(/&#(\d+);/g,(m,dec)=>String.fromCharCode(dec)).replace(/\s+/g,' ').trim();
 }
 
 function isArticleUrl(url) {
@@ -314,7 +334,20 @@ function toHebrewDay(n) {
 }
 
 // ===== WINDOWS =====
-app.whenReady().then(() => { createPanel(); createLauncher(); createTray(); });
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (panelWindow) {
+      if (!panelVisible) showPanel(currentSide);
+      if (panelWindow.isMinimized()) panelWindow.restore();
+      panelWindow.focus();
+    }
+  });
+  app.whenReady().then(() => { createPanel(); createLauncher(); createTray(); });
+}
+
 
 nativeTheme.on('updated', () => {
   panelWindow?.webContents.send('native-theme-changed', nativeTheme.shouldUseDarkColors);
@@ -341,14 +374,35 @@ function getLauncherX(side, workArea) {
 }
 
 function getLauncherY(workArea) {
-  if (currentLauncherVPos === 'top')    return workArea.y + currentLauncherOffsetX;
+  if (currentLauncherVPos === 'top')    return workArea.y + 8;
   if (currentLauncherVPos === 'center') return workArea.y + Math.floor((workArea.height - currentLauncherH) / 2);
   return workArea.y + workArea.height - currentLauncherH; // bottom
 }
 
+function getDisplayForWindow(win) {
+  if (!win) return screen.getPrimaryDisplay();
+  try {
+    return screen.getDisplayMatching(win.getBounds());
+  } catch {
+    return screen.getPrimaryDisplay();
+  }
+}
+
+function getLauncherWorkArea() {
+  return getDisplayForWindow(launcherWindow).workArea;
+}
+
+function getWorkAreaNearPoint(x, y) {
+  try {
+    return screen.getDisplayNearestPoint({ x: Math.round(x), y: Math.round(y) }).workArea;
+  } catch {
+    return screen.getPrimaryDisplay().workArea;
+  }
+}
+
 function repositionLauncher() {
   if (!launcherWindow) return;
-  const { workArea } = screen.getPrimaryDisplay();
+  const workArea = getLauncherWorkArea();
   launcherWindow.setPosition(getLauncherX(currentSide, workArea), getLauncherY(workArea));
 }
 
@@ -369,7 +423,21 @@ function createPanel() {
   // Open all links in external browser
   panelWindow.webContents.setWindowOpenHandler(({url}) => { shell.openExternal(url); return {action:'deny'}; });
   panelWindow.webContents.on('will-navigate', (e,url) => { if(url!==panelWindow.webContents.getURL()){ e.preventDefault(); shell.openExternal(url); } });
-  panelWindow.on('blur', () => { if(panelVisible && !panelLocked) hidePanel(); });
+  panelWindow.on('focus', () => {
+    if (panelBlurTimer) {
+      clearTimeout(panelBlurTimer);
+      panelBlurTimer = null;
+    }
+  });
+  panelWindow.on('blur', () => {
+    if (!panelVisible || panelLocked) return;
+    if (panelBlurTimer) clearTimeout(panelBlurTimer);
+    // Focus can bounce briefly when opening from the launcher; only hide if it stays unfocused.
+    panelBlurTimer = setTimeout(() => {
+      panelBlurTimer = null;
+      if (panelVisible && !panelLocked && panelWindow && !panelWindow.isFocused()) hidePanel();
+    }, 150);
+  });
 
 }
 
@@ -389,12 +457,20 @@ function createLauncher(side='left') {
 
 function showPanel(side='left') {
   if (!panelWindow) return;
-  const { workArea } = screen.getPrimaryDisplay();
+  const workArea = getLauncherWorkArea();
   const bounds = panelWindow.getBounds();
   const x = side==='right' ? workArea.x+workArea.width-bounds.width : workArea.x;
   const y = workArea.y + Math.floor((workArea.height - bounds.height) / 2);
+  if (panelBlurTimer) {
+    clearTimeout(panelBlurTimer);
+    panelBlurTimer = null;
+  }
   panelWindow.setPosition(x, y);
-  panelWindow.show(); panelWindow.focus(); panelVisible=true;
+  panelWindow.setAlwaysOnTop(true, 'screen-saver');
+  panelWindow.show();
+  panelWindow.moveTop();
+  panelWindow.focus();
+  panelVisible=true;
   launcherWindow?.webContents.send('panel-state', true);
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: 'סגור ווידגטים', click: () => { hidePanel(); } },
@@ -403,6 +479,11 @@ function showPanel(side='left') {
   ]));
 }
 function hidePanel() {
+  if (panelBlurTimer) {
+    clearTimeout(panelBlurTimer);
+    panelBlurTimer = null;
+  }
+  panelWindow?.setAlwaysOnTop(false);
   panelWindow?.hide(); panelVisible=false;
   launcherWindow?.webContents.send('panel-state', false);
   tray?.setContextMenu(Menu.buildFromTemplate([
@@ -472,6 +553,61 @@ ipcMain.handle('fetch-forex',   async ()             => {
     return JSON.parse(raw);
   } catch(e) { return {error:e.message}; }
 });
+ipcMain.handle('fetch-oref', async () => {
+  try {
+    const raw = await withTimeout(fetchUrl('https://www.oref.org.il/WarningMessages/alert/alerts.json', 2, {
+      'Referer': 'https://www.oref.org.il/',
+      'X-Requested-With': 'XMLHttpRequest'
+    }), 5000);
+    if (!raw || raw.trim()==='') return null;
+    const jsonStr = raw.startsWith('\uFEFF') ? raw.slice(1) : raw;
+    return JSON.parse(jsonStr);
+  } catch(e) { return null; }
+});
+ipcMain.handle('get-launcher-pos', () => launcherWindow ? launcherWindow.getPosition() : [0, 0]);
+// Called once by panel window at startup with the persisted drag position from localStorage
+ipcMain.on('restore-launcher-drag-pos', (_, x, y) => {
+  if (launcherWindow && typeof x === 'number' && typeof y === 'number') {
+    const workArea = getWorkAreaNearPoint(x, y);
+    // Clamp to valid screen bounds
+    const cx = Math.max(workArea.x, Math.min(workArea.x + workArea.width  - currentLauncherW, x));
+    const cy = Math.max(workArea.y, Math.min(workArea.y + workArea.height - currentLauncherH, y));
+    launcherWindow.setPosition(cx, cy);
+  }
+});
+ipcMain.on('set-launcher-pos-abs', (_, x, y) => {
+  launcherWindow?.setPosition(x, y);
+  // persist the dragged position so it survives restarts
+  if (panelWindow) panelWindow.webContents.send('save-launcher-drag-pos', x, y);
+});
+
+// ===== MAIN-PROCESS DRAG (reliable — works even when mouse leaves the small window) =====
+let dragInterval = null;
+let dragStartCursorX = 0, dragStartCursorY = 0;
+let dragStartWinX = 0, dragStartWinY = 0;
+
+ipcMain.on('drag-start', () => {
+  if (!launcherWindow) return;
+  const pos = launcherWindow.getPosition();
+  const cursor = screen.getCursorScreenPoint();
+  dragStartWinX = pos[0]; dragStartWinY = pos[1];
+  dragStartCursorX = cursor.x; dragStartCursorY = cursor.y;
+  if (dragInterval) clearInterval(dragInterval);
+  dragInterval = setInterval(() => {
+    if (!launcherWindow) { clearInterval(dragInterval); dragInterval = null; return; }
+    const cur = screen.getCursorScreenPoint();
+    const newX = dragStartWinX + (cur.x - dragStartCursorX);
+    const newY = dragStartWinY + (cur.y - dragStartCursorY);
+    launcherWindow.setBounds({ x: Math.round(newX), y: Math.round(newY), width: currentLauncherW, height: currentLauncherH });
+  }, 16);
+});
+
+ipcMain.on('drag-end', () => {
+  if (dragInterval) { clearInterval(dragInterval); dragInterval = null; }
+  if (!launcherWindow) return;
+  const [x, y] = launcherWindow.getPosition();
+  if (panelWindow) panelWindow.webContents.send('save-launcher-drag-pos', x, y);
+});
 
 ipcMain.on('open-external', (_, url) => shell.openExternal(url));
 
@@ -482,11 +618,12 @@ ipcMain.on('set-launcher-opacity', (_, val) => {
 ipcMain.on('set-launcher-side', (_, side) => {
   currentSide = side;
   repositionLauncher();
+  if (panelWindow) panelWindow.webContents.send('save-launcher-side', side);
 });
 
 ipcMain.on('resize-panel', (_, width) => {
   if (!panelWindow) return;
-  const { workArea } = screen.getPrimaryDisplay();
+  const workArea = getLauncherWorkArea();
   const h = panelWindow.getBounds().height; // keep existing height
   const x = currentSide === 'right' ? workArea.x + workArea.width - width : workArea.x;
   const y = workArea.y + Math.floor((workArea.height - h) / 2);
@@ -700,7 +837,10 @@ const DAILY_QUOTES = [
   { text:'מה טובו אהליך יעקב, משכנותיך ישראל', author:'במדבר כד, ה' },
 ];
 ipcMain.handle('fetch-quote', async () => {
-  const doy = Math.floor((Date.now() - new Date(new Date().getFullYear(),0,0)) / 86400000);
+  const now = new Date();
+  const utcNow = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const utcStart = Date.UTC(now.getFullYear(), 0, 0);
+  const doy = Math.floor((utcNow - utcStart) / 86400000);
   return DAILY_QUOTES[doy % DAILY_QUOTES.length];
 });
 
@@ -735,11 +875,12 @@ const DAF_TRACTATES = [
   ['מנחות',109],['חולין',141],['בכורות',60],['ערכין',33],['תמורה',33],
   ['כריתות',27],['מעילה',21],['קינים',24],['תמיד',32],['מידות',36],['נידה',72],
 ];
-const CYCLE14_START = new Date('2020-01-05');
+const CYCLE14_START = Date.UTC(2020, 0, 5);
 ipcMain.handle('get-daf-yomi', async () => {
   try {
     const now = new Date();
-    const dayNum = Math.floor((now - CYCLE14_START) / 86400000) % 2711;
+    const utcNow = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayNum = Math.floor((utcNow - CYCLE14_START) / 86400000) % 2711;
     let rem = dayNum, tractate = '', daf = 2;
     for (const [name, pages] of DAF_TRACTATES) {
       if (rem < pages) { tractate = name; daf = rem + 2; break; }
@@ -757,7 +898,7 @@ ipcMain.on('set-launcher-trigger', (_, trigger) => { launcherWindow?.webContents
 ipcMain.on('set-launcher-size', (_, size) => {
   // Legacy named-size support
   if (!launcherWindow) return;
-  const { workArea } = screen.getPrimaryDisplay();
+  const workArea = getLauncherWorkArea();
   const [w, h] = LAUNCHER_SIZES[size] || LAUNCHER_SIZES.normal;
   currentLauncherW = w; currentLauncherH = h;
   launcherWindow.setBounds({ x: getLauncherX(currentSide, workArea), y: getLauncherY(workArea), width: w, height: h });
@@ -768,7 +909,7 @@ ipcMain.on('set-launcher-width', (_, width) => {
   if (!launcherWindow) return;
   const h = Math.max(34, Math.round(width * 0.37));
   currentLauncherW = width; currentLauncherH = h;
-  const { workArea } = screen.getPrimaryDisplay();
+  const workArea = getLauncherWorkArea();
   launcherWindow.setBounds({ x: getLauncherX(currentSide, workArea), y: getLauncherY(workArea), width, height: h });
   launcherWindow.webContents.send('set-width', width);
 });
@@ -787,8 +928,199 @@ ipcMain.on('set-launcher-corner',   (_, c) => { launcherWindow?.webContents.send
 ipcMain.on('set-launcher-show-icon',(_, v) => { launcherWindow?.webContents.send('set-show-icon',  v); });
 ipcMain.on('set-launcher-show-city',(_, v) => { launcherWindow?.webContents.send('set-show-city',  v); });
 
-ipcMain.handle('get-login-item', () => app.getLoginItemSettings().openAtLogin);
-ipcMain.on('set-login-item', (_, enable) => app.setLoginItemSettings({ openAtLogin: enable }));
+ipcMain.handle('get-login-item', () => {
+  const isPackaged = app.isPackaged;
+  const opts = isPackaged
+    ? { path: app.getPath('exe') }
+    : { path: app.getPath('exe'), args: [path.resolve(__dirname)] };
+  return app.getLoginItemSettings(opts).openAtLogin;
+});
+ipcMain.on('set-login-item', (_, enable) => {
+  const isPackaged = app.isPackaged;
+  const opts = isPackaged
+    ? { openAtLogin: enable, path: app.getPath('exe') }
+    : { openAtLogin: enable, path: app.getPath('exe'), args: [path.resolve(__dirname)] };
+  app.setLoginItemSettings(opts);
+});
+ipcMain.on('set-launcher-draggable', (_, v) => { launcherWindow?.webContents.send('set-launcher-draggable', v); });
+
+// ===== GLOBAL SHORTCUT (Win+W to toggle panel) =====
+const { globalShortcut } = require('electron');
+function registerGlobalShortcut(accelerator) {
+  globalShortcut.unregisterAll();
+  if (!accelerator) return;
+  try {
+    const ok = globalShortcut.register(accelerator, () => {
+      panelVisible ? hidePanel() : showPanel(currentSide);
+    });
+    if (!ok) console.warn('Global shortcut registration failed:', accelerator);
+  } catch(e) { console.warn('Global shortcut error:', e.message); }
+}
+ipcMain.on('set-global-shortcut', (_, accelerator) => registerGlobalShortcut(accelerator));
+app.on('will-quit', () => globalShortcut.unregisterAll());
+
+// ===== ICAL CALENDAR =====
+function parseIcal(raw) {
+  const events = [];
+  const blocks = raw.split(/BEGIN:VEVENT/i).slice(1);
+  const now = new Date();
+  for (const block of blocks) {
+    try {
+      const get = (key) => {
+        const m = block.match(new RegExp(`(?:${key}[^:]*):([^\\r\\n]+(?:\\r?\\n[ \\t][^\\r\\n]+)*)`, 'i'));
+        if (!m) return '';
+        return m[1].replace(/\\r?\\n[ \\t]/g, '').replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').trim();
+      };
+      const parseDate = (s) => {
+        if (!s) return null;
+        // Clean up parameters like VALUE=DATE or TZID=...
+        const val = s.includes(':') ? s.split(':').pop() : s;
+        const clean = val.replace(/[^0-9TZ]/g, '');
+        if (clean.length === 8) { // YYYYMMDD (Parse as local midnight)
+           return new Date(+clean.slice(0,4), +clean.slice(4,6)-1, +clean.slice(6,8));
+        }
+        if (clean.length >= 15) { // YYYYMMDDTHHMMSS...
+           const hasZ = clean.endsWith('Z');
+           const iso = `${clean.slice(0,4)}-${clean.slice(4,6)}-${clean.slice(6,8)}T${clean.slice(9,11)}:${clean.slice(11,13)}:${clean.slice(13,15)}`;
+           // Parse as UTC if it has 'Z', otherwise local timezone
+           return new Date(iso + (hasZ ? 'Z' : ''));
+        }
+        return null;
+      };
+      
+      const summary = get('SUMMARY');
+      const dtstart = parseDate(get('DTSTART'));
+      const dtend   = parseDate(get('DTEND'));
+      const location = get('LOCATION');
+      const rrule = get('RRULE');
+      
+      if (!summary || !dtstart || isNaN(dtstart.getTime())) continue;
+      
+      const duration = dtend ? dtend.getTime() - dtstart.getTime() : 0;
+      const occurrences = [dtstart];
+      
+      if (rrule) {
+        const freqMatch = rrule.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/i);
+        const countMatch = rrule.match(/COUNT=(\d+)/i);
+        const untilMatch = rrule.match(/UNTIL=([\wT]+)/i);
+        const intervalMatch = rrule.match(/INTERVAL=(\d+)/i);
+        const byDayMatch = rrule.match(/BYDAY=([a-zA-Z,]+)/i);
+        
+        if (freqMatch) {
+          const freq = freqMatch[1].toUpperCase();
+          const interval = intervalMatch ? parseInt(intervalMatch[1]) : 1;
+          const untilDate = untilMatch ? parseDate(untilMatch[1]) : new Date(now.getTime() + 60 * 86400000);
+          const maxCount = countMatch ? parseInt(countMatch[1]) : 50;
+          
+          const dayMap = {SU:0,MO:1,TU:2,WE:3,TH:4,FR:5,SA:6};
+          let byDays = null;
+          if (byDayMatch) byDays = byDayMatch[1].split(',').map(d => dayMap[d.trim().toUpperCase()]).filter(d => d !== undefined);
+          
+          let curr = new Date(dtstart);
+          let count = 1;
+          
+          if (freq === 'WEEKLY' && byDays && byDays.length > 0) {
+            let daysSearched = 0;
+            while (count < maxCount && curr <= untilDate && curr.getTime() - now.getTime() < 60 * 86400000) {
+              curr.setDate(curr.getDate() + 1);
+              daysSearched++;
+              if (daysSearched % 7 === 0 && interval > 1) curr.setDate(curr.getDate() + 7 * (interval - 1));
+              if (byDays.includes(curr.getDay())) {
+                occurrences.push(new Date(curr));
+                count++;
+              }
+            }
+          } else {
+             while (count < maxCount && curr <= untilDate && curr.getTime() - now.getTime() < 60 * 86400000) {
+               if (freq === 'DAILY') curr.setDate(curr.getDate() + interval);
+               else if (freq === 'WEEKLY') curr.setDate(curr.getDate() + 7 * interval);
+               else if (freq === 'MONTHLY') curr.setMonth(curr.getMonth() + interval);
+               else if (freq === 'YEARLY') curr.setFullYear(curr.getFullYear() + interval);
+               
+               occurrences.push(new Date(curr));
+               count++;
+             }
+          }
+        }
+      }
+      
+      for (const occ of occurrences) {
+        const occEnd = new Date(occ.getTime() + duration);
+        const endToUse = occEnd.getTime() > occ.getTime() ? occEnd : occ;
+        
+        const diffDaysEnd = (endToUse.getTime() - now.getTime()) / 86400000;
+        const diffDaysStart = (occ.getTime() - now.getTime()) / 86400000;
+        
+        if (diffDaysEnd > -1 && diffDaysStart < 60) {
+          events.push({ summary, dtstart: occ.getTime(), dtend: occEnd.getTime() || null, location });
+        }
+      }
+    } catch(e) {}
+  }
+  events.sort((a, b) => a.dtstart - b.dtstart);
+  return events.slice(0, 30);
+}
+
+ipcMain.handle('fetch-ical', async (_, url) => {
+  if (!url) return { error: 'אין כתובת iCal' };
+  try {
+    const raw = await withTimeout(fetchUrl(url), 15000);
+    const events = parseIcal(raw);
+    return { events };
+  } catch(e) { return { error: e.message }; }
+});
+
+// ===== CPU / RAM MONITOR =====
+const os = require('os');
+function getCpuUsage() {
+  return new Promise(resolve => {
+    const cpus1 = os.cpus();
+    setTimeout(() => {
+      const cpus2 = os.cpus();
+      let totalIdle = 0, totalTick = 0;
+      cpus1.forEach((cpu, i) => {
+        const cpu2 = cpus2[i];
+        const idle  = cpu2.times.idle  - cpu.times.idle;
+        const total = Object.values(cpu2.times).reduce((a,b)=>a+b,0) -
+                      Object.values(cpu.times ).reduce((a,b)=>a+b,0);
+        totalIdle += idle; totalTick += total;
+      });
+      resolve(totalTick ? Math.round((1 - totalIdle / totalTick) * 100) : 0);
+    }, 200);
+  });
+}
+ipcMain.handle('get-system-stats', async () => {
+  try {
+    const cpuPct = await getCpuUsage();
+    const totalMem = os.totalmem();
+    const freeMem  = os.freemem();
+    const usedMem  = totalMem - freeMem;
+    const ramPct   = Math.round((usedMem / totalMem) * 100);
+    const ramGb    = (usedMem / 1073741824).toFixed(1);
+    const totalGb  = (totalMem / 1073741824).toFixed(1);
+    return { cpuPct, ramPct, ramGb, totalGb };
+  } catch(e) { return { error: e.message }; }
+});
+
+// ===== UPDATE CHECKER =====
+ipcMain.handle('check-for-update', async () => {
+  try {
+    const pkg = require('./package.json');
+    const raw = await withTimeout(fetchUrl(`https://registry.npmjs.org/${pkg.name}/latest`), 8000);
+    const data = JSON.parse(raw);
+    const latest = data.version || '';
+    const current = pkg.version || '0.0.0';
+    const parse = v => v.split('.').map(Number);
+    const [la, lb, lc] = parse(latest);
+    const [ca, cb, cc] = parse(current);
+    const hasUpdate = la > ca || (la === ca && lb > cb) || (la === ca && lb === cb && lc > cc);
+    return { hasUpdate, current, latest };
+  } catch {
+    // Fallback: app is up-to-date if can't reach server
+    const pkg = require('./package.json');
+    return { hasUpdate: false, current: pkg.version, latest: pkg.version };
+  }
+});
 
 // With tray icon the app stays alive even when all windows are hidden
 app.on('window-all-closed', () => { /* stay in tray */ });
