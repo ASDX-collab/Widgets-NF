@@ -99,6 +99,65 @@ async function fetchGeoLocation() {
   throw new Error('geo failed');
 }
 
+// ===== ARTICLE TEXT EXTRACTOR =====
+function extractArticleText(html) {
+  // Remove scripts, styles, nav, header, footer, aside, comments
+  let clean = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+    .replace(/<figure[\s\S]*?<\/figure>/gi, '');
+
+  // Try to find article content in common containers (order = most specific first)
+  const articlePatterns = [
+    // Elementor (JDN, many Israeli sites)
+    /<div[^>]*class="[^"]*elementor-widget-theme-post-content[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/i,
+    // WordPress / common CMS
+    /<div[^>]*class="[^"]*(?:entry-content|post-content|article-content|article-body|content-text|article__body)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]*class="[^"]*(?:the-content|main-content|article_body|story-body|post-body|single-content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    // Blogspot
+    /<div[^>]*class="[^"]*post-body[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    // Generic article tag (less specific, larger scope)
+    /<article[^>]*>([\s\S]*?)<\/article>/i,
+  ];
+  let content = '';
+  for (const pat of articlePatterns) {
+    const m = clean.match(pat);
+    if (m && (m[1] || m[0]).length > 100) { content = m[1] || m[0]; break; }
+  }
+  // Fallback: collect all <p> tags from the page body
+  if (!content || content.replace(/<[^>]+>/g, '').trim().length < 100) {
+    // Try getting p tags from article first, then from full page
+    const source = content || clean;
+    const paragraphs = [];
+    const pRe = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+    let pm;
+    while ((pm = pRe.exec(source)) !== null) {
+      const txt = pm[1].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').trim();
+      if (txt.length > 30) paragraphs.push(txt);
+    }
+    if (paragraphs.length > 0) content = paragraphs.join('\n');
+  }
+  // Strip remaining HTML tags and decode entities
+  content = content
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return content;
+}
+
 // ===== RSS =====
 function shuffle(arr) {
   const a = [...arr];
@@ -207,17 +266,23 @@ async function fetchFeed(category, extraUrls = []) {
   });
   const urls = [...(RSS_FEEDS[category] || []), ...(extraUrls || [])];
   const items = [];
-  for (const url of urls) {
+  // Fetch all feeds in parallel instead of sequentially
+  const feedResults = await Promise.allSettled(urls.map(async (url) => {
+    let feed;
     try {
-      let feed;
-      try {
-        const raw = await withTimeout(fetchUrl(url), 12000);
-        feed = await parser.parseString(sanitizeXml(raw));
-      } catch {
-        feed = await parser.parseURL(url);
-      }
+      const raw = await withTimeout(fetchUrl(url), 12000);
+      feed = await parser.parseString(sanitizeXml(raw));
+    } catch {
+      feed = await parser.parseURL(url);
+    }
+    return { feed, url };
+  }));
+  for (const result of feedResults) {
+    if (result.status !== 'fulfilled') continue;
+    const { feed, url } = result.value;
+    try {
       const src = getSourceName(url, cleanText(feed.title||''));
-      for (const item of (feed.items||[]).slice(0, 10)) {
+      for (const item of (feed.items||[]).slice(0, 25)) {
         const link = extractLink(item);
         let summary = cleanText(item.contentSnippet || item.summary || '');
         if (summary.length > 200) summary = summary.slice(0,200)+'...';
@@ -226,7 +291,7 @@ async function fetchFeed(category, extraUrls = []) {
         if (!title) {
           const descHtml = item['content:encoded'] || item.description || item.summary || '';
           const m = descHtml.match(/The post <a[^>]*>([^<]+)<\/a> appeared first on/);
-          if (m) title = m[1];
+          if (m) title = cleanText(m[1]);
         }
         items.push({
           title, summary, link,
@@ -238,7 +303,31 @@ async function fetchFeed(category, extraUrls = []) {
       }
     } catch(e) { console.error(`RSS [${url}]:`, e.message); }
   }
-  return items.sort((a, b) => (b.rawDate||0) - (a.rawDate||0));
+  // Sort by date, then interleave sources so one source doesn't dominate
+  items.sort((a, b) => (b.rawDate||0) - (a.rawDate||0));
+
+  // Group by source, keeping each group sorted by date
+  const bySource = {};
+  for (const item of items) {
+    (bySource[item.source] || (bySource[item.source] = [])).push(item);
+  }
+  const sources = Object.values(bySource);
+  if (sources.length <= 1) return items;
+
+  // Round-robin interleave: pick one from each source in turn
+  const result = [];
+  const indices = sources.map(() => 0);
+  let added = true;
+  while (added) {
+    added = false;
+    for (let s = 0; s < sources.length; s++) {
+      if (indices[s] < sources[s].length) {
+        result.push(sources[s][indices[s]++]);
+        added = true;
+      }
+    }
+  }
+  return result;
 }
 
 // ===== WEATHER =====
@@ -443,17 +532,47 @@ function createPanel() {
 
 function createLauncher(side='left') {
   const { workArea } = screen.getPrimaryDisplay();
-  if (launcherWindow) { launcherWindow.destroy(); launcherWindow=null; }
+  if (launcherWindow) { try { launcherWindow.destroy(); } catch {} launcherWindow=null; }
   launcherWindow = new BrowserWindow({
     width:140, height:52,
     x:getLauncherX(side, workArea), y:getLauncherY(workArea),
-    frame:false, transparent:true, alwaysOnTop:true,
+    frame:false, transparent:true, alwaysOnTop:!launcherDesktopOnly,
     skipTaskbar:true, resizable:false, movable:false, focusable:false,
     icon: path.join(__dirname, 'icon.ico'),
     webPreferences:{ preload:path.join(__dirname,'preload.js'), contextIsolation:true, nodeIntegration:false, backgroundThrottling:true },
   });
   launcherWindow.loadFile(path.join(__dirname,'launcher.html'));
+
+  launcherWindow.on('closed', () => {
+    launcherWindow = null;
+    if (!app.isQuitting) setTimeout(() => createLauncher(currentSide), 500);
+  });
+  launcherWindow.webContents.on('crashed', () => {
+    launcherWindow = null;
+    if (!app.isQuitting) setTimeout(() => createLauncher(currentSide), 500);
+  });
+  launcherWindow.on('unresponsive', () => {
+    try { launcherWindow.destroy(); } catch {}
+    launcherWindow = null;
+    if (!app.isQuitting) setTimeout(() => createLauncher(currentSide), 500);
+  });
 }
+
+// Launcher watchdog — recreate if destroyed, re-show if hidden
+setInterval(() => {
+  if (app.isQuitting) return;
+  if (!launcherWindow || launcherWindow.isDestroyed()) {
+    createLauncher(currentSide);
+    return;
+  }
+  // Ensure launcher stays visible and on top (unless desktop-only mode)
+  if (!launcherDesktopOnly && !launcherWindow.isVisible()) {
+    launcherWindow.showInactive();
+  }
+  if (!launcherDesktopOnly && !launcherWindow.isAlwaysOnTop()) {
+    launcherWindow.setAlwaysOnTop(true);
+  }
+}, 30000);
 
 function showPanel(side='left') {
   if (!panelWindow) return;
@@ -504,8 +623,15 @@ ipcMain.on('set-launcher-text-color', (_, c) => { launcherWindow?.webContents.se
 
 ipcMain.handle('fetch-feed',    async (_,cat,extra)  => { try { return await fetchFeed(cat, extra); }     catch { return []; } });
 ipcMain.handle('fetch-weather', async (_,lat,lon,u)  => { try { return await fetchWeather(lat,lon,u); } catch(e) { return {error:e.message}; } });
-ipcMain.handle('get-location',  async ()             => { try { return await fetchGeoLocation(); }       catch { return {lat:31.7683,lon:35.2137,city:'ירושלים'}; } });
+ipcMain.handle('get-location',  async ()             => { try { return await fetchGeoLocation(); }       catch { return {lat:31.7683,lon:35.2137,city:'ירושלים',fallback:true}; } });
 ipcMain.handle('fetch-og-image',async (_,url)        => { try { return await fetchOgImage(url); }        catch { return ''; } });
+ipcMain.handle('fetch-article-text', async (_, url)  => {
+  try {
+    const html = await withTimeout(fetchUrl(url), 15000);
+    const text = extractArticleText(html);
+    return { text: text || 'לא ניתן לחלץ את תוכן הכתבה' };
+  } catch(e) { return { error: e.message }; }
+});
 ipcMain.handle('get-zmanim',    async (_,lat,lon,cm) => { try { return calcZmanim(lat,lon,cm); }        catch(e) { return {error:e.message}; } });
 ipcMain.handle('get-hebrew-month', async (_, gYear, gMonth) => {
   try {
@@ -655,14 +781,14 @@ ipcMain.handle('fetch-stocks', async (_, symbolsStr = 'TA35.TA,BTC-USD,MSFT,AAPL
         if (!res) continue;
         const meta = res.meta;
         const closes = (res.indicators?.quote?.[0]?.close || []).filter(v => v != null);
+        const prev = meta.previousClose || meta.chartPreviousClose || 0;
+        const price = meta.regularMarketPrice || 0;
         results.push({
           symbol: sym,
           name: meta.shortName || meta.symbol || sym,
-          price: meta.regularMarketPrice || 0,
-          prev: meta.previousClose || meta.chartPreviousClose || 0,
-          changePct: meta.previousClose
-            ? ((meta.regularMarketPrice - meta.previousClose) / meta.previousClose * 100)
-            : 0,
+          price,
+          prev,
+          changePct: prev ? ((price - prev) / prev * 100) : 0,
           currency: meta.currency || '',
           closes: closes.slice(-7),
         });
@@ -787,19 +913,35 @@ ipcMain.handle('fetch-crypto', async () => {
 });
 
 // ===== OMER COUNT (uses @hebcal/core) =====
-ipcMain.handle('get-omer', async () => {
+// Accepts optional lat/lon so we can roll over at sunset (halachic day) instead of midnight.
+ipcMain.handle('get-omer', async (_e, lat, lon) => {
   try {
-    const { HDate } = require('@hebcal/core');
+    const { HDate, Location, Zmanim } = require('@hebcal/core');
     const now = new Date();
-    const hdate = new HDate(now);
+    let hdate = new HDate(now);
+    let sunsetMs = null;
+    if (typeof lat === 'number' && typeof lon === 'number') {
+      try {
+        const location = new Location(lat, lon, true, 'Asia/Jerusalem', 'Israel');
+        const z = new Zmanim(location, hdate, false);
+        const ss = z.sunset();
+        if (ss instanceof Date && !isNaN(ss.getTime())) {
+          sunsetMs = ss.getTime();
+          if (now.getTime() >= sunsetMs) {
+            // After sunset — halachically the next Hebrew day
+            hdate = hdate.next();
+          }
+        }
+      } catch {}
+    }
     const year = hdate.getFullYear();
     const startAbs = new HDate(16, 1, year).abs(); // 16 Nisan
     const endAbs   = new HDate(5,  3, year).abs(); // 5 Sivan (last day)
     const todayAbs = hdate.abs();
     if (todayAbs >= startAbs && todayAbs <= endAbs) {
-      return { day: todayAbs - startAbs + 1, inOmer: true };
+      return { day: todayAbs - startAbs + 1, inOmer: true, sunsetMs };
     }
-    return { day: 0, inOmer: false };
+    return { day: 0, inOmer: false, sunsetMs };
   } catch(e) { return { error: e.message, inOmer: false }; }
 });
 
@@ -944,6 +1086,14 @@ ipcMain.on('set-login-item', (_, enable) => {
 });
 ipcMain.on('set-launcher-draggable', (_, v) => { launcherWindow?.webContents.send('set-launcher-draggable', v); });
 
+// ===== DESKTOP-ONLY LAUNCHER MODE =====
+let launcherDesktopOnly = false;
+ipcMain.on('set-launcher-desktop-only', (_, v) => {
+  launcherDesktopOnly = v;
+  if (!launcherWindow || launcherWindow.isDestroyed()) return;
+  launcherWindow.setAlwaysOnTop(!v);
+});
+
 // ===== GLOBAL SHORTCUT (Win+W to toggle panel) =====
 const { globalShortcut } = require('electron');
 function registerGlobalShortcut(accelerator) {
@@ -957,6 +1107,7 @@ function registerGlobalShortcut(accelerator) {
   } catch(e) { console.warn('Global shortcut error:', e.message); }
 }
 ipcMain.on('set-global-shortcut', (_, accelerator) => registerGlobalShortcut(accelerator));
+app.on('before-quit', () => { app.isQuitting = true; });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 
 // ===== ICAL CALENDAR =====
@@ -1086,7 +1237,7 @@ function getCpuUsage() {
         totalIdle += idle; totalTick += total;
       });
       resolve(totalTick ? Math.round((1 - totalIdle / totalTick) * 100) : 0);
-    }, 200);
+    }, 1000);
   });
 }
 ipcMain.handle('get-system-stats', async () => {

@@ -238,7 +238,7 @@
               <div class="sys-val" id="cpuVal">--%</div>
             </div>
             <div class="sys-item">
-              <div class="sys-label">זיכרון (RAM) <span id="ramText" style="opacity:0.6;font-size:10px"></span></div>
+              <div class="sys-label" title="הערך מבוסס על זיכרון פנוי בפועל (os.freemem). Task Manager מציג זיכרון בשימוש נטו שלא כולל זיכרון standby/cache — ולכן הערך כאן עשוי להיות גבוה יותר. שתי המדידות נכונות.">זיכרון (RAM) <span id="ramText" style="opacity:0.6;font-size:10px"></span></div>
               <div class="sys-bar"><div class="sys-fill" id="ramFill" style="width:0; background:#e87fff"></div></div>
               <div class="sys-val" id="ramVal">--%</div>
             </div>
@@ -595,6 +595,23 @@
             <option value="tzfat">צפת</option>
             <option value="tiberias">טבריה</option>
             <option value="raanana">רעננה</option>
+            <option value="afula">עפולה</option>
+            <option value="kiryat-gat">קרית גת</option>
+            <option value="herzliya">הרצליה</option>
+            <option value="kfar-saba">כפר סבא</option>
+            <option value="acre">עכו</option>
+            <option value="nahariya">נהריה</option>
+            <option value="lod">לוד</option>
+            <option value="ramla">רמלה</option>
+            <option value="dimona">דימונה</option>
+            <option value="nazareth">נצרת</option>
+            <option value="carmiel">כרמיאל</option>
+            <option value="yokneam">יקנעם</option>
+            <option value="ofakim">אופקים</option>
+            <option value="kiryat-malachi">קרית מלאכי</option>
+            <option value="beitar-ilit">ביתר עלית</option>
+            <option value="rechasim">רכסים</option>
+            <option value="emanuel">עמנואל</option>
           </select>
         </div>
         <div class="s-row">
@@ -641,6 +658,12 @@
             <div class="layout-name">מגזין</div>
           </button>
         </div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title"><svg class="w-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg> חדשות ומוזיקה</div>
+        <div class="s-row"><label>אל תעדכן חדשות בשבת</label><label class="toggle"><input type="checkbox" id="pauseNewsOnShabbat"><span class="track"></span></label></div>
+        <div class="s-row"><label>נגן מוזיקה בתוך האפליקציה</label><label class="toggle"><input type="checkbox" id="inAppMusic"><span class="track"></span></label></div>
       </div>
 
       <div class="s-section">
@@ -730,12 +753,12 @@
             <option value="30">30 דקות</option>
           </select>
         </div>
-        <div class="s-row">
-          <label>גרסת האפליקציה</label>
-          <div>
-            <span id="versionText" style="font-size:12px;opacity:0.75;margin-left:8px">...</span>
-            <button id="checkUpdateBtn" class="bg-btn" style="padding:4px 8px;font-size:11px">בדוק עדכון</button>
+        <div class="s-row" style="flex-direction:column;gap:8px;align-items:stretch">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <label>גרסת האפליקציה</label>
+            <span id="versionText" style="font-size:12px;color:var(--tx1)">...</span>
           </div>
+          <button id="checkUpdateBtn" class="bg-btn" style="padding:8px 12px;font-size:13px;font-weight:600;width:100%;border:1.5px solid var(--accent);color:var(--accent);border-radius:8px">בדוק עדכונים</button>
         </div>
       </div>
 
@@ -789,6 +812,7 @@
           <input type="range" class="s-slider" id="launcherWidthSlider" min="80" max="240" step="4" value="140">
         </div>
         <div class="s-row" style="margin-top:8px"><label>אפשר גרירת כפתור פאנל</label><label class="toggle"><input type="checkbox" id="launcherDraggable"><span class="track"></span></label></div>
+        <div class="s-row"><label>הצג כפתור רק בשולחן עבודה</label><label class="toggle"><input type="checkbox" id="launcherDesktopOnly"><span class="track"></span></label></div>
         <div class="s-row">
           <label>שקיפות <span id="launcherBrightVal">8</span>%</label>
           <input type="range" class="s-slider" id="launcherBrightSlider" min="0" max="95" value="8">
@@ -874,6 +898,13 @@
           <button class="bg-btn" id="addCustomFeedBtn" style="flex-shrink:0">הוסף</button>
         </div>
         <div id="customFeedList" style="margin-top:6px"></div>
+      </div>
+
+      <div class="s-section">
+        <div class="s-section-title"><svg class="w-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> איפוס</div>
+        <div class="s-row"><button class="bg-btn" id="resetBtnPos" style="flex:1;padding:6px 10px">איפוס מיקום כפתור</button></div>
+        <div class="s-row"><button class="bg-btn" id="resetBlocked" style="flex:1;padding:6px 10px">איפוס חסימות (״אל תציג יותר״)</button></div>
+        <div class="s-row"><button class="bg-btn" id="resetAll" style="flex:1;padding:6px 10px;color:#ff6b6b;border-color:#ff6b6b">איפוס מלא של התוכנה</button></div>
       </div>
 
       <div class="s-version">ווידג'טים v2.0</div>

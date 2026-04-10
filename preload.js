@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('api', {
   fetchWeatherLauncher: (lat, lon)       => ipcRenderer.invoke('fetch-weather-launcher', lat, lon),
   getLocation:          ()               => ipcRenderer.invoke('get-location'),
   fetchOgImage:         (url)            => ipcRenderer.invoke('fetch-og-image', url),
+  fetchArticleText:     (url)            => ipcRenderer.invoke('fetch-article-text', url),
   getZmanim:            (lat, lon, cm)   => ipcRenderer.invoke('get-zmanim', lat, lon, cm),
   fetchForex:           ()               => ipcRenderer.invoke('fetch-forex'),
   fetchOref:            ()               => ipcRenderer.invoke('fetch-oref'),
@@ -24,7 +25,9 @@ contextBridge.exposeInMainWorld('api', {
   setLauncherPosAbs:    (x, y)           => ipcRenderer.send('set-launcher-pos-abs', x, y),
   onSetLauncherDraggable:(cb)            => ipcRenderer.on('set-launcher-draggable', (_, v) => cb(v)),
   setLauncherDraggable: (v)              => ipcRenderer.send('set-launcher-draggable', v),
+  setLauncherDesktopOnly: (v)            => ipcRenderer.send('set-launcher-desktop-only', v),
   onSaveLauncherDragPos:(cb)             => ipcRenderer.on('save-launcher-drag-pos', (_, x, y) => cb(x, y)),
+  onSaveLauncherSide:  (cb)             => ipcRenderer.on('save-launcher-side', (_, side) => cb(side)),
   restoreLauncherDragPos:(x, y)          => ipcRenderer.send('restore-launcher-drag-pos', x, y),
 
   // New widgets
@@ -34,7 +37,7 @@ contextBridge.exposeInMainWorld('api', {
   fetchYtMusic:         ()               => ipcRenderer.invoke('fetch-yt-music'),
   fetchNasaApod:        ()               => ipcRenderer.invoke('fetch-nasa-apod'),
   fetchCrypto:          ()               => ipcRenderer.invoke('fetch-crypto'),
-  getOmer:              ()               => ipcRenderer.invoke('get-omer'),
+  getOmer:              (lat, lon)       => ipcRenderer.invoke('get-omer', lat, lon),
   fetchQuote:           ()               => ipcRenderer.invoke('fetch-quote'),
   getParasha:           ()               => ipcRenderer.invoke('get-parasha'),
   getDafYomi:           ()               => ipcRenderer.invoke('get-daf-yomi'),

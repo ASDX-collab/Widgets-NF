@@ -100,24 +100,8 @@
 
     window.api.onSetTrigger(t => { trigger = t; });
 
-    async function init() {
-      try {
-        const geo = await window.api.getLocation();
-        const w   = await window.api.fetchWeatherLauncher(geo.lat, geo.lon);
-        if (w && !w.error) {
-          document.getElementById('icon').textContent = w.icon;
-          document.getElementById('temp').textContent = w.temp + '°';
-          document.getElementById('city').textContent = geo.city || 'ווידג\'טים';
-        }
-      } catch {
-        document.getElementById('icon').textContent = '🌤️';
-        document.getElementById('city').textContent = 'ווידג\'טים';
-      }
-    }
-    init();
-    setInterval(init, 10 * 60 * 1000);
-
-    // Live weather update from panel settings change
+    // Weather is pushed from the panel via IPC — no independent fetching
+    // This ensures the launcher always shows the user-selected city
     window.api.onWeatherUpdate(w => {
       if (w && !w.error) {
         document.getElementById('icon').textContent = w.icon;

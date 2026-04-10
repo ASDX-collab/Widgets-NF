@@ -1,6 +1,6 @@
 {
   "name": "haredi-widgets",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "ווידג'טים בסגנון Windows 11 עם חדשות חרדיות",
   "author": "ASDX-collab",
   "main": "main.js",
@@ -18,8 +18,12 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "language": "1037"
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": false,
+      "language": "1037",
+      "include": "build/installer.nsh"
     },
     "files": [
       "main.js",

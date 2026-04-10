@@ -16,6 +16,23 @@ const CITIES = {
   'tzfat':       { name:'צפת',           lat:32.9646, lon:35.4960 },
   'tiberias':    { name:'טבריה',         lat:32.7940, lon:35.5300 },
   'raanana':     { name:'רעננה',         lat:32.1844, lon:34.8706 },
+  'afula':       { name:'עפולה',         lat:32.6100, lon:35.2892 },
+  'kiryat-gat':  { name:'קרית גת',      lat:31.6100, lon:34.7642 },
+  'herzliya':    { name:'הרצליה',       lat:32.1629, lon:34.7915 },
+  'kfar-saba':   { name:'כפר סבא',      lat:32.1780, lon:34.9069 },
+  'acre':        { name:'עכו',           lat:32.9260, lon:35.0764 },
+  'nahariya':    { name:'נהריה',         lat:33.0050, lon:35.0931 },
+  'lod':         { name:'לוד',           lat:31.9515, lon:34.8953 },
+  'ramla':       { name:'רמלה',          lat:31.9275, lon:34.8625 },
+  'dimona':      { name:'דימונה',        lat:31.0665, lon:35.0335 },
+  'nazareth':    { name:'נצרת',          lat:32.7000, lon:35.3000 },
+  'carmiel':     { name:'כרמיאל',       lat:32.9156, lon:35.3042 },
+  'yokneam':     { name:'יקנעם',        lat:32.6592, lon:35.1092 },
+  'ofakim':      { name:'אופקים',       lat:31.3150, lon:34.6183 },
+  'kiryat-malachi':{ name:'קרית מלאכי', lat:31.7300, lon:34.7475 },
+  'beitar-ilit': { name:'ביתר עלית',    lat:31.6947, lon:35.1186 },
+  'rechasim':    { name:'רכסים',        lat:32.7556, lon:35.1064 },
+  'emanuel':     { name:'עמנואל',       lat:32.1589, lon:35.1486 },
 };
 
 const DEFAULTS = {
@@ -38,6 +55,7 @@ const DEFAULTS = {
   showDice:false, showIcal:false, showSysMonitor:false,
   showOref: false, orefSound: true, orefLocalOnly: false,
   launcherDraggable: false,
+  launcherDesktopOnly: false,
   launcherDraggedX: null, launcherDraggedY: null,
   // Config
   stockSymbols:'TA35.TA,BTC-USD,MSFT,AAPL',
@@ -51,15 +69,22 @@ const DEFAULTS = {
   // Custom RSS feeds [{url, category, label}]
   customFeeds:[],
   icalUrl: '', globalShortcut: 'CommandOrControl+W',
-  blockedSources: [], // list of source names to hide
+  blockedSources: {}, // { category: [source names] } — per-category blocking
   blockedKeywords: [], // list of title fragments/tags to hide
   zmanimAlerts: {}, // { "sunrise": 10, "sunset": 15 } = minutes before
   omerFormat: 'letters', // 'letters' (גימטריה) or 'numbers'
   omerNusach: 'la', // 'la' (לעומר) or 'ba' (בעומר)
+  omerAlertEnabled: false,
+  omerAlertTime: '20:30',
   alertSound: 'chime', // 'chime','bell','soft','urgent','silent'
+  pauseNewsOnShabbat: false,
+  inAppMusic: false,
+  lastUserCity: null, // last city the user manually picked (used as offline/auto fallback)
 };
 let S = { ...DEFAULTS };
 try { Object.assign(S, JSON.parse(localStorage.getItem('widget-settings') || '{}')); } catch {}
+// Migrate old blockedSources array to per-category object
+if (Array.isArray(S.blockedSources)) { S.blockedSources = {}; }
 function saveSettings() { localStorage.setItem('widget-settings', JSON.stringify(S)); }
 
 // ===== STATE =====
@@ -126,6 +151,14 @@ document.addEventListener('click', e => {
   const href = a.getAttribute('href');
   if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
   e.preventDefault(); e.stopPropagation();
+  // In-app YT music player intercept
+  if (S.inAppMusic && a.dataset.ytmLink) {
+    const id = ytExtractId(a.dataset.ytmLink);
+    if (id) {
+      ytmShowPlayer(id, a.querySelector('.ytm-title')?.textContent || '');
+      return;
+    }
+  }
   window.api.openExternal(href);
 }, true);
 
@@ -208,7 +241,14 @@ function applySettings() {
   window.api.setPanelLocked(S.panelLocked);
 
   clearInterval(refreshTimer);
-  refreshTimer = setInterval(() => { newsCache[currentCat]=null; loadNews(currentCat); loadWeather(); if (S.showIcal) loadIcal(); }, S.refreshMin*60*1000);
+  refreshTimer = setInterval(async () => {
+    if (S.pauseNewsOnShabbat && await isShabbatNow()) {
+      // Skip news refresh during Shabbat — but still refresh non-news widgets.
+      loadWeather(); if (S.showIcal) loadIcal();
+      return;
+    }
+    newsCache[currentCat]=null; loadNews(currentCat); loadWeather(); if (S.showIcal) loadIcal();
+  }, S.refreshMin*60*1000);
 }
 
 function toggleWidgetVis(id, show) {
@@ -313,6 +353,10 @@ window.api.onSaveLauncherDragPos((x, y) => {
   S.launcherDraggedX = x; S.launcherDraggedY = y;
   saveSettings();
 });
+window.api.onSaveLauncherSide?.((side) => {
+  S.launcherSide = side;
+  saveSettings();
+});
 
 // ===== CLOCK =====
 const DAYS   = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -366,7 +410,11 @@ async function loadWeather() {
     ).join('');
     // Update the always-visible launcher button weather
     window.api.sendLauncherWeather({ icon: w.icon, temp: w.temp, city: cityName });
-  } catch { document.getElementById('wDesc').textContent = 'שגיאה בטעינה'; }
+  } catch {
+    document.getElementById('wDesc').textContent = 'שגיאה בטעינה';
+    // Still update launcher with city name even if weather fetch fails
+    window.api.sendLauncherWeather({ icon: '🌤️', temp: '--', city: cityName });
+  }
 }
 
 // ===== ZMANIM =====
@@ -559,14 +607,79 @@ function scheduleZmanimAlerts(z) {
 }
 
 // ===== GEO =====
-async function initGeo() {
-  document.getElementById('locationName').textContent = 'מזהה מיקום...';
-  try { const g=await window.api.getLocation(); geoLat=g.lat; geoLon=g.lon; geoCity=g.city||'אוטומטי'; }
-  catch { geoLat=31.7683; geoLon=35.2137; geoCity='ירושלים'; }
+const GEO_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+function loadCachedGeo() {
+  try {
+    const cached = JSON.parse(localStorage.getItem('widget-geo-cache') || 'null');
+    if (cached && cached.lat && cached.lon) {
+      // Purge if stale
+      if (cached.savedAt && (Date.now() - cached.savedAt) > GEO_CACHE_TTL_MS) {
+        localStorage.removeItem('widget-geo-cache');
+        return false;
+      }
+      geoLat = cached.lat; geoLon = cached.lon; geoCity = cached.city || 'אוטומטי';
+      return true;
+    }
+  } catch {}
+  return false;
+}
+function saveCachedGeo() {
+  localStorage.setItem('widget-geo-cache', JSON.stringify({
+    lat: geoLat, lon: geoLon, city: geoCity, savedAt: Date.now()
+  }));
+}
+function applyLastUserCityFallback() {
+  // Prefer the city the user manually picked (if any) over hardcoded Jerusalem.
+  if (S.lastUserCity && CITIES[S.lastUserCity]) {
+    const c = CITIES[S.lastUserCity];
+    geoLat = c.lat; geoLon = c.lon; geoCity = c.name;
+    return true;
+  }
+  return false;
+}
+
+async function initGeo(silent) {
+  if (!silent) document.getElementById('locationName').textContent = 'מזהה מיקום...';
+  try {
+    const g = await window.api.getLocation();
+    if (g.fallback) {
+      // Auto-detect failed (offline, behind shared filter, etc.)
+      // Order: cached geo → last user-picked city → hardcoded fallback.
+      if (!loadCachedGeo() && !applyLastUserCityFallback()) {
+        geoLat = g.lat; geoLon = g.lon; geoCity = g.city || 'ירושלים';
+      }
+    } else {
+      geoLat = g.lat; geoLon = g.lon; geoCity = g.city || 'אוטומטי';
+      saveCachedGeo();
+    }
+  } catch {
+    if (!loadCachedGeo() && !applyLastUserCityFallback()) {
+      geoLat = 31.7683; geoLon = 35.2137; geoCity = 'ירושלים';
+    }
+  }
   loadWeather();
   if (S.showZmanim) loadZmanim();
+  if (S.showOmer)   loadOmer();
 }
+loadCachedGeo();
 initGeo();
+window.addEventListener('online', async () => {
+  // Re-fetch everything that failed while offline
+  initGeo(true);
+  if (!(S.pauseNewsOnShabbat && await isShabbatNow())) {
+    newsCache[currentCat] = null; loadNews(currentCat);
+  }
+  if (S.showStocks)    loadStocks();
+  if (S.showCrypto)    loadCrypto();
+  if (S.showForex)     loadForex();
+  if (S.showIcal)      loadIcal();
+  if (S.showUVAir)     loadUvAir();
+  if (S.showYTMusic)   loadYtMusic();
+  if (S.showAPOD)      loadApod();
+  if (S.showOref)      loadOref();
+  if (S.showSysMonitor) startSysMonitor();
+});
+window.addEventListener('offline', () => { loadWeather(); });
 
 // ===== TICKER (JS-based, right→left) =====
 let tickerX = 0;
@@ -599,6 +712,71 @@ function animateTicker() {
   tickerRAF = requestAnimationFrame(animateTicker);
 }
 
+// ===== TTS (Text-to-Speech) =====
+let ttsCurrentLink = null;
+function ttsStop() {
+  speechSynthesis.cancel();
+  ttsCurrentLink = null;
+  document.querySelectorAll('.news-tts-btn.playing').forEach(b => b.classList.remove('playing'));
+}
+function ttsGetHebrewVoice() {
+  const voices = speechSynthesis.getVoices();
+  return voices.find(v => v.lang.startsWith('he')) || voices.find(v => v.lang.startsWith('ar')) || null;
+}
+async function ttsReadArticle(link, btn) {
+  // If already reading this article, stop
+  if (ttsCurrentLink === link) { ttsStop(); return; }
+  ttsStop();
+  btn.classList.add('playing');
+  btn.title = 'טוען כתבה...';
+  ttsCurrentLink = link;
+  try {
+    const res = await window.api.fetchArticleText(link);
+    if (ttsCurrentLink !== link) return; // user clicked something else
+    if (res.error || !res.text) { btn.title = 'שגיאה בטעינת כתבה'; btn.classList.remove('playing'); ttsCurrentLink = null; return; }
+    const text = res.text;
+    // Split into chunks (speechSynthesis has ~200 char limit per utterance on some systems)
+    const chunks = [];
+    const sentences = text.split(/(?<=[.!?।\n])\s+/);
+    let current = '';
+    for (const s of sentences) {
+      if ((current + ' ' + s).length > 180) {
+        if (current) chunks.push(current);
+        current = s;
+      } else {
+        current = current ? current + ' ' + s : s;
+      }
+    }
+    if (current) chunks.push(current);
+    if (!chunks.length) { btn.title = 'לא נמצא תוכן'; btn.classList.remove('playing'); ttsCurrentLink = null; return; }
+    btn.title = 'לחץ לעצירה';
+    const voice = ttsGetHebrewVoice();
+    let i = 0;
+    function speakNext() {
+      if (i >= chunks.length || ttsCurrentLink !== link) {
+        btn.classList.remove('playing');
+        ttsCurrentLink = null;
+        return;
+      }
+      const utt = new SpeechSynthesisUtterance(chunks[i]);
+      utt.lang = 'he-IL';
+      utt.rate = 1.0;
+      if (voice) utt.voice = voice;
+      utt.onend = () => { i++; speakNext(); };
+      utt.onerror = () => { btn.classList.remove('playing'); ttsCurrentLink = null; };
+      speechSynthesis.speak(utt);
+    }
+    speakNext();
+  } catch {
+    btn.title = 'שגיאה';
+    btn.classList.remove('playing');
+    ttsCurrentLink = null;
+  }
+}
+// Preload voices
+speechSynthesis.getVoices();
+if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+
 // ===== NEWS =====
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
 const CAT_ICON = { news:'📰', tech:'💻', economy:'💰', stocks:'📈', music:'🎵' };
@@ -629,6 +807,7 @@ function buildItem(item, i, extraClass='') {
       </div>
     </a>
     <div class="news-actions">
+      <button class="news-tts-btn" data-link="${esc(item.link)}" title="הקראת כתבה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
       <button class="news-dismiss-btn" data-link="${esc(item.link)}" title="סמן כנקרא"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       <button class="news-block-btn" data-src="${esc(item.source)}" data-title="${esc(item.title)}" title="אל תציג יותר"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg></button>
     </div>
@@ -641,12 +820,19 @@ function renderNews(items) {
   const q = searchQuery.trim().toLowerCase();
   
   // Filtering logic: 1. Dismissed (session) 2. Blocked Source 3. Blocked Keyword
-  const filtered = (q ? items.filter(i=>i.title.toLowerCase().includes(q)||i.source.toLowerCase().includes(q)) : items)
-    .filter(i => !dismissedLinks.has(i.link))
-    .filter(i => !S.blockedSources.includes(i.source))
+  const catBlocked = S.blockedSources[currentCat] || [];
+  const beforeBlock = (q ? items.filter(i=>i.title.toLowerCase().includes(q)||i.source.toLowerCase().includes(q)) : items)
+    .filter(i => !dismissedLinks.has(i.link));
+  const filtered = beforeBlock
+    .filter(i => !catBlocked.includes(i.source))
     .filter(i => !S.blockedKeywords.some(kw => i.title.toLowerCase().includes(kw.toLowerCase())));
+  const blockedCount = beforeBlock.length - filtered.length;
   if (!filtered.length) {
-    list.innerHTML = `<div class="no-results">${q?`🔍 אין תוצאות עבור "${esc(q)}"` : 'אין פריטים'}</div>`;
+    const blockedMsg = blockedCount > 0 ? `<br><span style="font-size:11px;opacity:0.7">${blockedCount} כתבות מוסתרות ע"י חסימות — <a href="#" id="inlineResetBlocked" style="color:var(--accent)">הסר חסימות</a></span>` : '';
+    list.innerHTML = `<div class="no-results">${q?`🔍 אין תוצאות עבור "${esc(q)}"` : 'אין פריטים'}${blockedMsg}</div>`;
+    document.getElementById('inlineResetBlocked')?.addEventListener('click', e => {
+      e.preventDefault(); S.blockedSources={}; S.blockedKeywords=[]; saveSettings(); renderNews(items);
+    });
     return;
   }
   const count = newsDisplayCount[currentCat] || NEWS_PAGE_SIZE;
@@ -657,15 +843,26 @@ function renderNews(items) {
   } else {
     list.innerHTML = visible.map((it,i) => buildItem(it, i)).join('');
   }
+  if (blockedCount > 0) {
+    list.innerHTML += `<div style="text-align:center;padding:6px;font-size:11px;color:var(--tx3)">${blockedCount} כתבות מוסתרות · <a href="#" id="inlineResetBlocked" style="color:var(--accent)">הסר חסימות</a></div>`;
+  }
   if (hasMore) {
     list.innerHTML += `<div class="news-load-more" id="newsLoadMore">טוען עוד...</div>`;
     setupLoadMoreObserver(items);
   } else if (loadMoreObserver) {
     loadMoreObserver.disconnect(); loadMoreObserver = null;
   }
+  document.getElementById('inlineResetBlocked')?.addEventListener('click', e => {
+    e.preventDefault(); S.blockedSources={}; S.blockedKeywords=[]; saveSettings(); renderNews(items);
+  });
   // Eagerly load og:images for items without images
   fillMissingImages(visible);
   
+  // Attach TTS events
+  list.querySelectorAll('.news-tts-btn').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation(); e.preventDefault();
+    ttsReadArticle(btn.dataset.link, btn);
+  }));
   // Attach dismiss/block events
   list.querySelectorAll('.news-dismiss-btn').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation(); e.preventDefault();
@@ -675,8 +872,8 @@ function renderNews(items) {
   list.querySelectorAll('.news-block-btn').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation(); e.preventDefault();
     const src = btn.dataset.src;
-    // const title = btn.dataset.title;
-    if (!S.blockedSources.includes(src)) S.blockedSources.push(src);
+    if (!S.blockedSources[currentCat]) S.blockedSources[currentCat] = [];
+    if (!S.blockedSources[currentCat].includes(src)) S.blockedSources[currentCat].push(src);
     saveSettings();
     renderNews(items);
   }));
@@ -686,12 +883,16 @@ function setupLoadMoreObserver(items) {
   if (loadMoreObserver) loadMoreObserver.disconnect();
   const el = document.getElementById('newsLoadMore');
   if (!el) return;
+  // In dual-column mode, the scroll container is #newsBody; in single mode it's .scroll-area
+  const scrollRoot = document.getElementById('newsBody') && S.dualColumn
+    ? document.getElementById('newsBody')
+    : document.querySelector('.scroll-area');
   loadMoreObserver = new IntersectionObserver(entries => {
     if (entries[0].isIntersecting) {
       newsDisplayCount[currentCat] = (newsDisplayCount[currentCat] || NEWS_PAGE_SIZE) + NEWS_PAGE_SIZE;
       renderNews(items);
     }
-  }, { threshold: 0.1 });
+  }, { root: scrollRoot, threshold: 0.1 });
   loadMoreObserver.observe(el);
 }
 
@@ -743,6 +944,31 @@ function replaceThumb(item) {
 function updateMeta(items, loadedAt) {
   const t = loadedAt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('newsMetaRow').textContent = `${items.length} פריטים · עודכן ${t}`;
+}
+
+// ===== SHABBAT DETECTION (for "pause news on Shabbat") =====
+// Returns true if right now is between Friday sunset and Saturday tzeit
+// at the user's current location. Uses getZmanim for accuracy.
+async function isShabbatNow() {
+  try {
+    const now = new Date();
+    const dow = now.getDay(); // 5=Fri, 6=Sat
+    if (dow !== 5 && dow !== 6) return false;
+    const z = await window.api.getZmanim(geoLat, geoLon, S.candleMins || 18);
+    if (!z || z.error) return false;
+    function toMins(s) {
+      if (!s || s === '—') return null;
+      const [h,m] = s.split(':').map(Number); return h*60+m;
+    }
+    const nowMins = now.getHours()*60 + now.getMinutes();
+    if (dow === 5) {
+      const ss = toMins(z.sunset);
+      return ss != null && nowMins >= ss;
+    }
+    // Saturday: until tzeit (or havdalah)
+    const tzeit = toMins(z.havdalah || z.tzeit);
+    return tzeit == null || nowMins < tzeit;
+  } catch { return false; }
 }
 
 async function loadNews(cat) {
@@ -899,6 +1125,9 @@ function syncSettingsUI() {
   document.getElementById('orefSound').checked      = S.orefSound;
   document.getElementById('orefLocalOnly').checked  = S.orefLocalOnly;
   document.getElementById('launcherDraggable').checked = S.launcherDraggable;
+  if (document.getElementById('launcherDesktopOnly')) document.getElementById('launcherDesktopOnly').checked = S.launcherDesktopOnly;
+  if (document.getElementById('pauseNewsOnShabbat')) document.getElementById('pauseNewsOnShabbat').checked = S.pauseNewsOnShabbat;
+  if (document.getElementById('inAppMusic')) document.getElementById('inAppMusic').checked = S.inAppMusic;
   document.querySelectorAll('[data-layout]').forEach(b  => b.classList.toggle('active', b.dataset.layout  ===S.newsLayout));
   document.querySelectorAll('[data-fontsize]').forEach(b=> b.classList.toggle('active', b.dataset.fontsize===S.fontSize));
   document.querySelectorAll('[data-width]').forEach(b   => b.classList.toggle('active', +b.dataset.width  ===S.panelWidth));
@@ -923,9 +1152,17 @@ function syncSettingsUI() {
 // Settings wiring
 document.getElementById('citySelect').addEventListener('change', e => {
   S.city = e.target.value;
+  if (S.city !== 'auto' && CITIES[S.city]) {
+    // Remember the user's manual choice — used as fallback when auto fails / offline.
+    S.lastUserCity = S.city;
+    const c = CITIES[S.city];
+    geoLat = c.lat; geoLon = c.lon; geoCity = c.name;
+    saveCachedGeo();
+  }
   saveSettings();
   loadWeather();
   if (S.showZmanim) loadZmanim();
+  if (S.showOmer)   loadOmer();
 });
 
 document.querySelectorAll('[data-unit]').forEach(b => b.addEventListener('click', () => {
@@ -1014,15 +1251,16 @@ document.querySelectorAll('.color-dot').forEach(b => b.addEventListener('click',
 }));
 
 ['showWeather', 'showClock', 'showNews'].forEach(id =>
-  document.getElementById(id).addEventListener('change', e => {
+  document.getElementById(id)?.addEventListener('change', e => {
     S[id] = e.target.checked;
-    document.getElementById(id.replace('show', 'lib')).checked = e.target.checked;
+    const libEl = document.getElementById(id.replace('show', 'lib'));
+    if (libEl) libEl.checked = e.target.checked;
     saveSettings();
     applySettings();
   })
 );
 
-document.getElementById('showTicker').addEventListener('change', e => {
+document.getElementById('showTicker')?.addEventListener('change', e => {
   S.showTicker = e.target.checked;
   saveSettings();
   applySettings();
@@ -1122,11 +1360,11 @@ function updateTimerDisp() {
   const h = Math.floor(timerSecs/3600), m = Math.floor((timerSecs%3600)/60), s = timerSecs%60;
   tDisplay.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
-document.getElementById('timerStart').addEventListener('click', () => {
+document.getElementById('timerStart')?.addEventListener('click', () => {
   if (!timerInterval) timerInterval = setInterval(() => { timerSecs++; updateTimerDisp(); }, 1000);
 });
-document.getElementById('timerPause').addEventListener('click', () => { clearInterval(timerInterval); timerInterval = null; });
-document.getElementById('timerReset').addEventListener('click', () => { clearInterval(timerInterval); timerInterval = null; timerSecs = 0; updateTimerDisp(); });
+document.getElementById('timerPause')?.addEventListener('click', () => { clearInterval(timerInterval); timerInterval = null; });
+document.getElementById('timerReset')?.addEventListener('click', () => { clearInterval(timerInterval); timerInterval = null; timerSecs = 0; updateTimerDisp(); });
 
 // Forex
 const FOREX_FLAGS = { USD:'🇺🇸', EUR:'🇪🇺', GBP:'🇬🇧', JPY:'🇯🇵', CHF:'🇨🇭' };
@@ -1195,9 +1433,10 @@ function renderCustomFeeds() {
   }).join('');
 }
 
-document.getElementById('addCustomFeedBtn').addEventListener('click', () => {
+document.getElementById('addCustomFeedBtn')?.addEventListener('click', () => {
   const urlEl = document.getElementById('customFeedUrl');
   const catEl = document.getElementById('customFeedCat');
+  if (!urlEl || !catEl) return;
   const url = urlEl.value.trim();
   if (!url || !url.startsWith('http')) return;
   if (S.customFeeds.some(f => f.url === url)) { urlEl.value=''; return; }
@@ -1208,7 +1447,7 @@ document.getElementById('addCustomFeedBtn').addEventListener('click', () => {
   renderCustomFeeds();
 });
 
-document.getElementById('customFeedList').addEventListener('click', e => {
+document.getElementById('customFeedList')?.addEventListener('click', e => {
   const btn = e.target.closest('.custom-feed-remove');
   if (!btn) return;
   const idx = +btn.dataset.idx;
@@ -1334,6 +1573,7 @@ window.api.setLauncherSide(S.launcherSide);
 window.api.setLauncherOpacity(S.launcherBright / 100);
 window.api.setLauncherTextColor(S.launcherTextColor);
 if (window.api.setLauncherDraggable) window.api.setLauncherDraggable(S.launcherDraggable);
+if (window.api.setLauncherDesktopOnly) window.api.setLauncherDesktopOnly(S.launcherDesktopOnly);
 
 // Persist dragged launcher position (listener already registered above)
 // Restore saved drag position on startup
@@ -1430,16 +1670,20 @@ async function loadIcal() {
 }
 
 // Updates
-document.getElementById('checkUpdateBtn')?.addEventListener('click', async (e) => {
-  const btn = e.target;
+async function doUpdateCheck() {
+  const btn = document.getElementById('checkUpdateBtn');
   const textEl = document.getElementById('versionText');
+  if (!btn || !textEl) return;
   const oldText = btn.textContent;
   btn.textContent = 'בודק...'; btn.disabled = true;
   try {
     const res = await window.api.checkForUpdate();
     if (res.hasUpdate) {
-      textEl.innerHTML = `<span style="color:#ff6b6b">יש עדכון! (${res.latest})</span>`;
+      textEl.innerHTML = `<span style="color:#ff6b6b;font-weight:700">יש עדכון חדש! (${res.latest})</span>`;
       btn.textContent = 'הורד עדכון';
+      btn.style.background = 'var(--accent)';
+      btn.style.color = '#000';
+      btn.style.fontWeight = '700';
       btn.onclick = () => window.api.openExternal('https://github.com/haredi-widgets/releases/latest');
     } else {
       textEl.textContent = `מעודכן (v${res.current})`;
@@ -1449,7 +1693,9 @@ document.getElementById('checkUpdateBtn')?.addEventListener('click', async (e) =
     textEl.textContent = 'שגיאה בבדיקה'; btn.textContent = oldText;
   }
   btn.disabled = false;
-});
+}
+document.getElementById('checkUpdateBtn')?.addEventListener('click', doUpdateCheck);
+setTimeout(doUpdateCheck, 5000);
 
 // ===== NEW WIDGET SETTINGS LISTENERS =====
 const NEW_WIDGET_IDS = ['showCalendar','showMultiNotes','showStocks',
@@ -1480,10 +1726,11 @@ NEW_WIDGET_IDS.forEach(id => {
   });
 });
 
-['orefSound', 'orefLocalOnly', 'launcherDraggable'].forEach(id => {
+['orefSound', 'orefLocalOnly', 'launcherDraggable', 'launcherDesktopOnly', 'pauseNewsOnShabbat', 'inAppMusic'].forEach(id => {
   document.getElementById(id)?.addEventListener('change', e => {
     S[id] = e.target.checked; saveSettings();
     if (id === 'launcherDraggable' && window.api.setLauncherDraggable) window.api.setLauncherDraggable(S.launcherDraggable);
+    if (id === 'launcherDesktopOnly' && window.api.setLauncherDesktopOnly) window.api.setLauncherDesktopOnly(S.launcherDesktopOnly);
     if (id.startsWith('oref') && S.showOref) loadOref();
   });
 });
@@ -1601,6 +1848,32 @@ document.getElementById('launcherShowCity')?.addEventListener('change', e => {
 // Stock symbols input
 document.getElementById('stockSymbolsInput')?.addEventListener('change', e => {
   S.stockSymbols = e.target.value.trim(); saveSettings(); if (S.showStocks) loadStocks();
+});
+
+// ===== RESET BUTTONS =====
+document.getElementById('resetBtnPos')?.addEventListener('click', () => {
+  if (!confirm('לאפס את מיקום הכפתור למיקום ברירת המחדל?')) return;
+  S.launcherDraggedX = null; S.launcherDraggedY = null;
+  S.launcherSide = DEFAULTS.launcherSide;
+  S.launcherVPos = DEFAULTS.launcherVPos;
+  S.launcherOffsetX = DEFAULTS.launcherOffsetX;
+  saveSettings();
+  window.api.setLauncherSide(S.launcherSide);
+  window.api.setLauncherVPos(S.launcherVPos);
+  window.api.setLauncherOffsetX(S.launcherOffsetX);
+});
+document.getElementById('resetBlocked')?.addEventListener('click', () => {
+  if (!confirm('לאפס את כל החסימות? מקורות וביטויים חסומים יוצגו שוב.')) return;
+  S.blockedSources = {};
+  S.blockedKeywords = [];
+  saveSettings();
+  if (newsCache[currentCat]) renderNews(newsCache[currentCat].items);
+});
+document.getElementById('resetAll')?.addEventListener('click', () => {
+  if (!confirm('שים לב! פעולה זו תאפס את כל ההגדרות, ההערות, והמשימות. להמשיך?')) return;
+  if (!confirm('בטוח? כל הנתונים יימחקו ולא ניתן לשחזר.')) return;
+  localStorage.clear();
+  location.reload();
 });
 
 
@@ -1749,14 +2022,47 @@ async function loadYtMusic() {
       list.innerHTML='<div class="no-results" style="font-size:12px">לא נמצאו פריטים</div>'; return;
     }
     list.innerHTML = items.map((it,i) => `
-      <a class="ytm-item" href="${esc(it.link)}" style="animation-delay:${i*0.04}s">
+      <a class="ytm-item" href="${esc(it.link)}" data-ytm-link="${esc(it.link)}" style="animation-delay:${i*0.04}s">
         ${it.thumb ? `<img class="ytm-thumb" src="${esc(it.thumb)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="ytm-thumb-ph">🎵</div>'}
         <div class="ytm-body">
           <div class="ytm-title">${esc(it.title)}</div>
           <div class="ytm-ch">${esc(it.channel)}</div>
         </div>
       </a>`).join('');
+    // (Click intercept handled by the global link handler — see ytmShowPlayer)
   } catch { loading.classList.add('hidden'); list.innerHTML='<div class="no-results" style="font-size:12px">שגיאה בטעינה</div>'; }
+}
+
+function ytExtractId(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+    const v = u.searchParams.get('v');
+    if (v) return v;
+    const m = u.pathname.match(/\/embed\/([^\/?#]+)/);
+    if (m) return m[1];
+  } catch {}
+  return null;
+}
+function ytmShowPlayer(videoId, title) {
+  const widget = document.getElementById('ytMusicWidget');
+  if (!widget) return;
+  let host = document.getElementById('ytmPlayerHost');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'ytmPlayerHost';
+    host.style.cssText = 'margin-top:8px;border-radius:8px;overflow:hidden;background:#000;position:relative';
+    widget.appendChild(host);
+  }
+  host.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:var(--card);font-size:12px">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">▶ ${esc(title)}</span>
+      <button id="ytmPlayerClose" style="background:none;border:none;color:var(--tx1);cursor:pointer;font-size:16px;line-height:1">×</button>
+    </div>
+    <iframe width="100%" height="180" frameborder="0" allow="autoplay; encrypted-media"
+      src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0"></iframe>`;
+  document.getElementById('ytmPlayerClose').onclick = () => { host.remove(); };
 }
 
 // ===== OMER COUNT =====
@@ -1773,18 +2079,72 @@ function omerText(day) {
   else if (weeks>0) txt+=`, שהם ${omerNum(weeks)} שבוע${weeks>1?'ות':''}`;
   return txt+' '+suffix;
 }
+function omerLocation() {
+  let lat = geoLat, lon = geoLon;
+  if (S.city !== 'auto' && CITIES[S.city]) { lat = CITIES[S.city].lat; lon = CITIES[S.city].lon; }
+  if (typeof lat !== 'number' || typeof lon !== 'number') { lat = 31.7683; lon = 35.2137; }
+  return { lat, lon };
+}
+let omerRefreshTimer = null;
 async function loadOmer() {
   const disp=document.getElementById('omerDisplay'), heb=document.getElementById('omerHebrew'), wks=document.getElementById('omerWeeks');
   if (!disp) return;
   try {
-    const o = await window.api.getOmer();
-    if (!o.inOmer) { disp.textContent='לא בתקופת העומר'; heb.textContent=''; wks.textContent=''; return; }
-    disp.textContent = `יום ${omerNum(o.day)} מתוך ${omerNum(49)}`;
-    heb.textContent = omerText(o.day);
-    const left = 49-o.day;
-    wks.textContent = left>0 ? `נותרו ${left} ימים לשבועות` : '🎉 חג שבועות שמח!';
+    const { lat, lon } = omerLocation();
+    const o = await window.api.getOmer(lat, lon);
+    if (!o.inOmer) { disp.textContent='לא בתקופת העומר'; heb.textContent=''; wks.textContent=''; }
+    else {
+      disp.textContent = `יום ${omerNum(o.day)} מתוך ${omerNum(49)}`;
+      heb.textContent = omerText(o.day);
+      const left = 49-o.day;
+      wks.textContent = left>0 ? `נותרו ${left} ימים לשבועות` : '🎉 חג שבועות שמח!';
+    }
+    // Schedule next refresh: at sunset (if still ahead) or just after midnight
+    if (omerRefreshTimer) { clearTimeout(omerRefreshTimer); omerRefreshTimer = null; }
+    const now = Date.now();
+    let nextMs;
+    if (o.sunsetMs && o.sunsetMs > now) {
+      nextMs = (o.sunsetMs - now) + 2000; // 2s after sunset
+    } else {
+      // Sunset already passed (or unknown) — refresh just after next midnight
+      // so we get a fresh sunset for the new gregorian day.
+      const t = new Date();
+      const midnight = new Date(t.getFullYear(), t.getMonth(), t.getDate()+1, 0, 0, 5, 0);
+      nextMs = midnight.getTime() - now;
+    }
+    // Cap at 24h as a safety net
+    if (nextMs > 86400000) nextMs = 86400000;
+    if (nextMs < 1000) nextMs = 1000;
+    omerRefreshTimer = setTimeout(loadOmer, nextMs);
   } catch { disp.textContent='שגיאה'; }
 }
+
+// Omer daily alert
+let omerAlertTimer = null;
+function scheduleOmerAlert() {
+  if (omerAlertTimer) { clearTimeout(omerAlertTimer); omerAlertTimer = null; }
+  if (!S.omerAlertEnabled || !S.omerAlertTime) return;
+  const [hh, mm] = S.omerAlertTime.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
+  let delay = target.getTime() - now.getTime();
+  if (delay < 0) delay += 86400000;
+  omerAlertTimer = setTimeout(async () => {
+    try {
+      const { lat, lon } = omerLocation();
+      const o = await window.api.getOmer(lat, lon);
+      if (o && o.inOmer) {
+        const text = omerText(o.day);
+        playAlertSound(S.alertSound);
+        if (Notification.permission === 'granted') {
+          new Notification('ספירת העומר', { body: `היום ${text}`, silent: true });
+        }
+      }
+    } catch {}
+    scheduleOmerAlert();
+  }, delay);
+}
+scheduleOmerAlert();
 
 // Omer settings popup
 document.getElementById('omerGearBtn')?.addEventListener('click', e => {
@@ -1803,6 +2163,10 @@ document.getElementById('omerGearBtn')?.addEventListener('click', e => {
       <button class="bg-btn${S.omerNusach==='la'?' active':''}" data-omer-nus="la">לעומר</button>
       <button class="bg-btn${S.omerNusach==='ba'?' active':''}" data-omer-nus="ba">בעומר</button>
     </div></div>
+    <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px">
+      <div class="msp-row"><span>תזכורת יומית</span><label class="toggle" style="scale:0.8"><input type="checkbox" id="omerAlertToggle" ${S.omerAlertEnabled?'checked':''}><span class="track"></span></label></div>
+      <div class="msp-row"><span>שעה:</span><input type="time" id="omerAlertTimeInput" value="${S.omerAlertTime}" style="background:var(--card);color:var(--tx1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:12px;direction:ltr"></div>
+    </div>
   `;
   document.getElementById('omerWidget').appendChild(popup);
   popup.querySelector('.msp-close').addEventListener('click', () => popup.remove());
@@ -1814,6 +2178,13 @@ document.getElementById('omerGearBtn')?.addEventListener('click', e => {
     popup.querySelectorAll('[data-omer-nus]').forEach(x => x.classList.remove('active'));
     b.classList.add('active'); S.omerNusach = b.dataset.omerNus; saveSettings(); loadOmer();
   }));
+  popup.querySelector('#omerAlertToggle')?.addEventListener('change', e => {
+    S.omerAlertEnabled = e.target.checked; saveSettings(); scheduleOmerAlert();
+    if (S.omerAlertEnabled) Notification.requestPermission();
+  });
+  popup.querySelector('#omerAlertTimeInput')?.addEventListener('change', e => {
+    S.omerAlertTime = e.target.value; saveSettings(); scheduleOmerAlert();
+  });
   setTimeout(() => {
     const close = ev => { if (!popup.contains(ev.target) && ev.target.id !== 'omerGearBtn') { popup.remove(); document.removeEventListener('click', close); } };
     document.addEventListener('click', close);

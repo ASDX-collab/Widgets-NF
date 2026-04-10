@@ -276,7 +276,7 @@ body.light .ical-list::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); }
 }
 .fc-day:hover { background: rgba(255,255,255,0.1); }
 .fc-name { font-size: 10px; color: var(--tx3); font-weight: 600; }
-.fc-icon { font-size: 20px; }
+.fc-icon { font-size: 20px; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; line-height: 1; }
 .fc-max { font-size: 13px; font-weight: 700; color: var(--tx1); }
 .fc-min { font-size: 10.5px; color: var(--tx3); }
 
@@ -467,7 +467,7 @@ body.light .ical-list::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); }
 .news-item-wrap { position: relative; }
 .news-actions {
   position: absolute; left: 6px; bottom: 8px;
-  display: flex; flex-direction: column; gap: 4px; opacity: 0; transition: opacity 0.2s ease;
+  display: flex; flex-direction: row; gap: 4px; opacity: 0; transition: opacity 0.2s ease;
   pointer-events: none; z-index: 20;
 }
 .news-item-wrap:hover .news-actions { opacity: 1; pointer-events: auto; }
@@ -475,7 +475,7 @@ body.light .ical-list::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); }
 /* Adjust for headlines layout */
 .layout-headlines .news-actions { bottom: 4px; left: 4px; flex-direction: row; }
 
-.news-dismiss-btn, .news-block-btn {
+.news-dismiss-btn, .news-block-btn, .news-tts-btn {
   background: rgba(30,30,30,0.5); color: rgba(255,255,255,0.85);
   border: 1px solid rgba(255,255,255,0.15);
   width: 26px; height: 26px; border-radius: 6px;
@@ -483,10 +483,13 @@ body.light .ical-list::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); }
   cursor: pointer; backdrop-filter: blur(4px);
   transition: all 0.2s ease;
 }
-.news-dismiss-btn svg, .news-block-btn svg { width: 14px; height: 14px; pointer-events: none; }
+.news-dismiss-btn svg, .news-block-btn svg, .news-tts-btn svg { width: 14px; height: 14px; pointer-events: none; }
 .news-dismiss-btn:hover { background: rgba(255,107,107,0.85); border-color: transparent; color: #fff; }
 .news-block-btn:hover { background: rgba(255,165,2,0.85); border-color: transparent; color: #fff; }
-.news-dismiss-btn:active, .news-block-btn:active { transform: scale(0.9); }
+.news-tts-btn:hover { background: rgba(77,184,255,0.85); border-color: transparent; color: #fff; }
+.news-tts-btn.playing { background: rgba(77,184,255,0.9); border-color: transparent; color: #fff; animation: tts-pulse 1.2s ease-in-out infinite; }
+@keyframes tts-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.news-dismiss-btn:active, .news-block-btn:active, .news-tts-btn:active { transform: scale(0.9); }
 
 /* ── LIST LAYOUT ── */
 .news-list.layout-list .news-item {
