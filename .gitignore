@@ -10,7 +10,8 @@ yarn-error.log*
 # Build outputs
 dist/
 package-lock.json
-build/
+build/*
+!build/installer.nsh
 *.exe
 *.dmg
 *.pkg
