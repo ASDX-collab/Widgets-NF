@@ -33,11 +33,70 @@ const CITIES = {
   'beitar-ilit': { name:'ביתר עלית',    lat:31.6947, lon:35.1186 },
   'rechasim':    { name:'רכסים',        lat:32.7556, lon:35.1064 },
   'emanuel':     { name:'עמנואל',       lat:32.1589, lon:35.1486 },
+  // --- נוספו בגרסה 2.1.1 ---
+  'holon':       { name:'חולון',         lat:32.0167, lon:34.7667 },
+  'bat-yam':     { name:'בת ים',         lat:32.0167, lon:34.7500 },
+  'givatayim':   { name:'גבעתיים',       lat:32.0714, lon:34.8106 },
+  'ramat-gan':   { name:'רמת גן',        lat:32.0680, lon:34.8247 },
+  'kiryat-ono':  { name:'קרית אונו',    lat:32.0640, lon:34.8550 },
+  'or-yehuda':   { name:'אור יהודה',    lat:32.0300, lon:34.8561 },
+  'yehud':       { name:'יהוד',          lat:32.0333, lon:34.8833 },
+  'rosh-haayin': { name:'ראש העין',     lat:32.0956, lon:34.9581 },
+  'kiryat-shmona':{name:'קרית שמונה',  lat:33.2075, lon:35.5700 },
+  'katzrin':     { name:'קצרין',         lat:32.9917, lon:35.6917 },
+  'hatzor':      { name:'חצור הגלילית', lat:32.9806, lon:35.5325 },
+  'karmiel':     { name:'כרמיאל (עיר)',lat:32.9156, lon:35.3042 },
+  'maalot':      { name:'מעלות תרשיחא',lat:33.0167, lon:35.2833 },
+  'shlomi':      { name:'שלומי',         lat:33.0722, lon:35.1444 },
+  'ashkelon':    { name:'אשקלון',        lat:31.6693, lon:34.5715 },
+  'netivot':     { name:'נתיבות',        lat:31.4225, lon:34.5881 },
+  'sderot':      { name:'שדרות',         lat:31.5247, lon:34.5953 },
+  'arad':        { name:'ערד',           lat:31.2583, lon:35.2128 },
+  'eilat':       { name:'אילת',          lat:29.5581, lon:34.9482 },
+  'mitzpe-ramon':{ name:'מצפה רמון',    lat:30.6103, lon:34.8014 },
+  'yavne':       { name:'יבנה',          lat:31.8781, lon:34.7386 },
+  'gan-yavne':   { name:'גן יבנה',       lat:31.7878, lon:34.7061 },
+  'gedera':      { name:'גדרה',          lat:31.8144, lon:34.7781 },
+  'rehovot':     { name:'רחובות',        lat:31.8928, lon:34.8113 },
+  'nes-ziona':   { name:'נס ציונה',      lat:31.9293, lon:34.7988 },
+  'mazkeret-batya':{name:'מזכרת בתיה', lat:31.8553, lon:34.8417 },
+  'kiryat-ekron':{ name:'קרית עקרון',   lat:31.8619, lon:34.8300 },
+  'beit-dagan':  { name:'בית דגן',       lat:31.9964, lon:34.8297 },
+  'hod-hasharon':{ name:'הוד השרון',    lat:32.1500, lon:34.8833 },
+  'ramat-hasharon':{name:'רמת השרון',  lat:32.1400, lon:34.8411 },
+  'tel-mond':    { name:'תל מונד',       lat:32.2500, lon:34.9167 },
+  'kochav-yair': { name:'כוכב יאיר',    lat:32.2233, lon:34.9967 },
+  'zichron':     { name:'זכרון יעקב',    lat:32.5733, lon:34.9519 },
+  'hadera':      { name:'חדרה',          lat:32.4344, lon:34.9197 },
+  'pardes-hana': { name:'פרדס חנה-כרכור',lat:32.4708, lon:34.9736 },
+  'binyamina':   { name:'בנימינה',       lat:32.5167, lon:34.9500 },
+  'tirat-carmel':{ name:'טירת כרמל',    lat:32.7594, lon:34.9714 },
+  'nesher':      { name:'נשר',           lat:32.7694, lon:35.0439 },
+  'kiryat-ata':  { name:'קרית אתא',     lat:32.8058, lon:35.1056 },
+  'kiryat-bialik':{name:'קרית ביאליק', lat:32.8275, lon:35.0800 },
+  'kiryat-motzkin':{name:'קרית מוצקין',lat:32.8344, lon:35.0814 },
+  'kiryat-yam':  { name:'קרית ים',       lat:32.8472, lon:35.0697 },
+  'migdal-haemek':{name:'מגדל העמק',   lat:32.6744, lon:35.2400 },
+  'nof-hagalil': { name:'נוף הגליל',    lat:32.7078, lon:35.3172 },
+  'beit-shean':  { name:'בית שאן',       lat:32.4969, lon:35.4975 },
+  'ariel':       { name:'אריאל',         lat:32.1050, lon:35.1925 },
+  'maale-adumim':{ name:'מעלה אדומים',lat:31.7719, lon:35.2975 },
+  'efrat':       { name:'אפרת',          lat:31.6519, lon:35.1517 },
+  'kiryat-arba': { name:'קרית ארבע',    lat:31.5228, lon:35.1147 },
+  'givat-zeev':  { name:'גבעת זאב',     lat:31.8517, lon:35.1689 },
+  'kochav-yaakov':{name:'כוכב יעקב',   lat:31.9308, lon:35.2736 },
+  'tel-zion':    { name:'תל ציון',       lat:31.9139, lon:35.2511 },
+  'kfar-chabad': { name:'כפר חב"ד',     lat:31.9911, lon:34.8461 },
+  'yavneel':     { name:'יבנאל',         lat:32.7081, lon:35.5056 },
+  'nof-ayalon':  { name:'נוף איילון',   lat:31.8431, lon:34.9611 },
+  'rosh-pina':   { name:'ראש פינה',     lat:32.9681, lon:35.5406 },
+  'yeruham':     { name:'ירוחם',         lat:30.9872, lon:34.9194 },
+  'meron':       { name:'מירון',         lat:32.9833, lon:35.4333 },
 };
 
 const DEFAULTS = {
   theme:'default', // default/dracula/nord/solarized
-  newsLayout:'list', city:'auto', tempUnit:'celsius',
+  newsLayout:'list', city:'jerusalem', tempUnit:'celsius',
   fontSize:'normal', panelWidth:460, blurPx:16, bgOpacity:88,
   accentColor:'#4db8ff', showWeather:true, showClock:true,
   showNews:true, showTicker:true, showZmanim:false, showShabbat:true,
@@ -638,25 +697,20 @@ function applyLastUserCityFallback() {
   return false;
 }
 
-async function initGeo(silent) {
-  if (!silent) document.getElementById('locationName').textContent = 'מזהה מיקום...';
-  try {
-    const g = await window.api.getLocation();
-    if (g.fallback) {
-      // Auto-detect failed (offline, behind shared filter, etc.)
-      // Order: cached geo → last user-picked city → hardcoded fallback.
-      if (!loadCachedGeo() && !applyLastUserCityFallback()) {
-        geoLat = g.lat; geoLon = g.lon; geoCity = g.city || 'ירושלים';
-      }
-    } else {
-      geoLat = g.lat; geoLon = g.lon; geoCity = g.city || 'אוטומטי';
-      saveCachedGeo();
-    }
-  } catch {
-    if (!loadCachedGeo() && !applyLastUserCityFallback()) {
-      geoLat = 31.7683; geoLon = 35.2137; geoCity = 'ירושלים';
-    }
-  }
+// Always derive location from the city setting. IP-based geolocation is NOT used —
+// it's unreliable behind shared content filters (IP rotation → jumping forecast).
+// Migration: existing users with S.city === 'auto' get mapped to lastUserCity or Jerusalem.
+if (S.city === 'auto') {
+  S.city = (S.lastUserCity && CITIES[S.lastUserCity]) ? S.lastUserCity : 'jerusalem';
+  saveSettings();
+}
+function applyCityLocation() {
+  const c = CITIES[S.city] || CITIES['jerusalem'];
+  geoLat = c.lat; geoLon = c.lon; geoCity = c.name;
+  saveCachedGeo();
+}
+async function initGeo() {
+  applyCityLocation();
   loadWeather();
   if (S.showZmanim) loadZmanim();
   if (S.showOmer)   loadOmer();
@@ -664,8 +718,11 @@ async function initGeo(silent) {
 loadCachedGeo();
 initGeo();
 window.addEventListener('online', async () => {
-  // Re-fetch everything that failed while offline
-  initGeo(true);
+  // Re-fetch everything that failed while offline.
+  // Note: we don't touch location — it comes from settings, not IP.
+  loadWeather();
+  if (S.showZmanim) loadZmanim();
+  if (S.showOmer)   loadOmer();
   if (!(S.pauseNewsOnShabbat && await isShabbatNow())) {
     newsCache[currentCat] = null; loadNews(currentCat);
   }
@@ -1070,6 +1127,22 @@ document.addEventListener('keydown', e => {
     else window.api.togglePanel();
   }
 });
+
+// Populate the city <select> dynamically from the CITIES object — single source of truth.
+// Sorted alphabetically by Hebrew name (after "auto") so it's easy to scan.
+(function populateCitySelect() {
+  const sel = document.getElementById('citySelect');
+  if (!sel) return;
+  const entries = Object.entries(CITIES)
+    .sort((a, b) => a[1].name.localeCompare(b[1].name, 'he'));
+  const frag = document.createDocumentFragment();
+  for (const [key, c] of entries) {
+    const opt = document.createElement('option');
+    opt.value = key; opt.textContent = c.name;
+    frag.appendChild(opt);
+  }
+  sel.appendChild(frag);
+})();
 
 function syncSettingsUI() {
   document.getElementById('citySelect').value       = S.city;
