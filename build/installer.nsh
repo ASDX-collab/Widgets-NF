@@ -1,6 +1,6 @@
 !macro customHeader
   !define MUI_WELCOMEPAGE_TITLE "ברוכים הבאים להתקנת ווידג'טים"
-  !define MUI_WELCOMEPAGE_TEXT "אשף ההתקנה ידריך אותך בתהליך.$\r$\n$\r$\nמומלץ לסגור את כל היישומים הפתוחים לפני שתמשיך.$\r$\n$\r$\nלחץ על הבא כדי להמשיך."
+  !define MUI_WELCOMEPAGE_TEXT "אשף ההתקנה ידריך אותך בתהליך.$\r$\n$\r$\nמומלץ לסגור את כל היישומים הפתוחים לפני שתמשיך.$\r$\n$\r$\nהערה: ייתכן ש-Windows SmartScreen יציג אזהרה בעת ההתקנה.$\r$\nזו תוכנה בטוחה — לחצו על ״מידע נוסף״ ואז ״הפעל בכל זאת״.$\r$\n$\r$\nלחץ על הבא כדי להמשיך."
   !define MUI_DIRECTORYPAGE_TEXT_TOP "בחר את התיקייה שבה תותקן התוכנה:"
   !define MUI_INSTFILESPAGE_FINISHHEADER_TEXT "ההתקנה הושלמה"
   !define MUI_INSTFILESPAGE_FINISHHEADER_SUBTEXT "ווידג'טים הותקן בהצלחה במחשב שלך."
@@ -18,11 +18,5 @@
 !macroend
 
 !macro customWelcomePage
-  ; Show a note about Windows SmartScreen
-  !define MUI_PAGE_CUSTOMFUNCTION_SHOW welcomePageShow
+  ; SmartScreen note is included in MUI_WELCOMEPAGE_TEXT above
 !macroend
-
-Function welcomePageShow
-  ; Add RTL style to welcome page
-  SendMessage $mui.WelcomePage.Text ${WM_SETTEXT} 0 "STR:ברוכים הבאים להתקנת ווידג'טים!$\r$\n$\r$\nהערה: ייתכן ש-Windows SmartScreen יציג אזהרה בעת ההתקנה.$\r$\nזו תוכנה בטוחה — לחצו על ״מידע נוסף״ ואז ״הפעל בכל זאת״.$\r$\n$\r$\nלחץ על הבא כדי להמשיך."
-FunctionEnd
