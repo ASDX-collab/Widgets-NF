@@ -1069,6 +1069,13 @@ body.widget-square .timer-btn { border-radius: 4px; }
 .parasha-date { font-size: 11px; color: var(--tx3); text-align: center; }
 .daf-text     { font-size: 20px; font-weight: 700; color: var(--tx1); text-align: center; padding: 8px 0; }
 
+/* ===== SHIR SHEL YOM ===== */
+.ssy-box     { text-align: center; padding: 6px 4px 10px; }
+.ssy-day     { font-size: 20px; font-weight: 700; color: var(--accent); padding-bottom: 4px; letter-spacing: 0.3px; }
+.ssy-theme   { font-size: 11.5px; color: var(--tx3); padding: 2px 4px 8px; line-height: 1.45; }
+.ssy-chapter { font-size: 15px; font-weight: 600; color: var(--tx1); padding-bottom: 6px; }
+.ssy-incipit { font-size: 13px; color: var(--tx1); line-height: 1.75; padding: 10px 8px 4px; font-style: italic; border-top: 1px solid var(--border); margin-top: 4px; }
+
 /* ===== DATE CONVERTER / GEMATRIA ===== */
 .dc-input  { width: 100%; background: var(--wg-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--tx1); padding: 6px 10px; font-size: 13px; outline: none; }
 .dc-input:focus { border-color: var(--accent); }

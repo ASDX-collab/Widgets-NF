@@ -45,7 +45,6 @@ const CITIES = {
   'kiryat-shmona':{name:'קרית שמונה',  lat:33.2075, lon:35.5700 },
   'katzrin':     { name:'קצרין',         lat:32.9917, lon:35.6917 },
   'hatzor':      { name:'חצור הגלילית', lat:32.9806, lon:35.5325 },
-  'karmiel':     { name:'כרמיאל (עיר)',lat:32.9156, lon:35.3042 },
   'maalot':      { name:'מעלות תרשיחא',lat:33.0167, lon:35.2833 },
   'shlomi':      { name:'שלומי',         lat:33.0722, lon:35.1444 },
   'ashkelon':    { name:'אשקלון',        lat:31.6693, lon:34.5715 },
@@ -112,6 +111,7 @@ const DEFAULTS = {
   showParasha:false, showDafYomi:false, showDateConverter:false,
   showGematria:false, showTodo:false, showStopwatch:false,
   showDice:false, showIcal:false, showSysMonitor:false,
+  showShirShelYom:false,
   showOref: false, orefSound: true, orefLocalOnly: false,
   launcherDraggable: false,
   launcherDesktopOnly: false,
@@ -283,6 +283,7 @@ function applySettings() {
   toggleWidgetVis('orefWidget',       S.showOref);
   toggleWidgetVis('icalWidget',       S.showIcal);
   toggleWidgetVis('sysMonitorWidget', S.showSysMonitor);
+  toggleWidgetVis('shirShelYomWidget', S.showShirShelYom);
 
   // Widget style
   document.body.classList.toggle('widget-compact', S.widgetSize === 'compact');
@@ -344,6 +345,7 @@ const WIDGET_IDS_BY_SETTING = {
   showOref: 'orefWidget',
   showIcal: 'icalWidget',
   showSysMonitor: 'sysMonitorWidget',
+  showShirShelYom: 'shirShelYomWidget',
 };
 
 function revealEnabledWidget(settingId) {
@@ -1194,6 +1196,8 @@ function syncSettingsUI() {
   document.getElementById('showTodo').checked       = S.showTodo;
   document.getElementById('showStopwatch').checked  = S.showStopwatch;
   document.getElementById('showDice').checked       = S.showDice;
+  const shirShelYomEl = document.getElementById('showShirShelYom');
+  if (shirShelYomEl) shirShelYomEl.checked = S.showShirShelYom;
   document.getElementById('showOref').checked       = S.showOref;
   document.getElementById('orefSound').checked      = S.orefSound;
   document.getElementById('orefLocalOnly').checked  = S.orefLocalOnly;
@@ -1673,6 +1677,7 @@ if (S.showTodo)        renderTodo();
 if (S.showOref)        loadOref();
 if (S.showIcal)        loadIcal();
 if (S.showSysMonitor)  startSysMonitor();
+if (S.showShirShelYom) loadShirShelYom();
 
 // Global Shortcut startup
 if (S.globalShortcut && window.api.setGlobalShortcut) window.api.setGlobalShortcut(S.globalShortcut);
@@ -1774,7 +1779,7 @@ setTimeout(doUpdateCheck, 5000);
 const NEW_WIDGET_IDS = ['showCalendar','showMultiNotes','showStocks',
   'showUVAir','showYTMusic','showOmer','showAlarm','showAPOD','showCrypto','showQuote',
   'showParasha','showDafYomi','showDateConverter','showGematria','showTodo',
-  'showStopwatch','showDice','showOref','showIcal','showSysMonitor'];
+  'showStopwatch','showDice','showOref','showIcal','showSysMonitor','showShirShelYom'];
 
 NEW_WIDGET_IDS.forEach(id => {
   document.getElementById(id)?.addEventListener('change', e => {
@@ -1796,6 +1801,7 @@ NEW_WIDGET_IDS.forEach(id => {
     if (id==='showOref'          && S.showOref)          loadOref();
     if (id==='showSysMonitor'    && S.showSysMonitor)    startSysMonitor();
     if (id==='showIcal'          && S.showIcal)          loadIcal();
+    if (id==='showShirShelYom'   && S.showShirShelYom)   loadShirShelYom();
   });
 });
 
@@ -2553,3 +2559,41 @@ if (_leftColEl) {
 }
 
 applyWidgetOrder();
+
+// ===== שיר של יום (Psalm of the Day) =====
+// The Levites sang a specific psalm each day in the Beit HaMikdash (Tamid 7:4).
+// Day index: 0=Sunday ... 6=Saturday
+const SHIR_SHEL_YOM = [
+  { day:'יום ראשון', chapter:24, hebrewChapter:'כ״ד',
+    incipit:'לְדָוִד מִזְמוֹר לַה׳ הָאָרֶץ וּמְלוֹאָהּ',
+    theme:'היום יום ראשון בשבת, שבו היו הלוויים אומרים במקדש:' },
+  { day:'יום שני', chapter:48, hebrewChapter:'מ״ח',
+    incipit:'שִׁיר מִזְמוֹר לִבְנֵי קֹרַח: גָּדוֹל ה׳ וּמְהֻלָּל מְאֹד',
+    theme:'היום יום שני בשבת, שבו היו הלוויים אומרים במקדש:' },
+  { day:'יום שלישי', chapter:82, hebrewChapter:'פ״ב',
+    incipit:'מִזְמוֹר לְאָסָף: אֱלֹהִים נִצָּב בַּעֲדַת אֵל',
+    theme:'היום יום שלישי בשבת, שבו היו הלוויים אומרים במקדש:' },
+  { day:'יום רביעי', chapter:94, hebrewChapter:'צ״ד',
+    incipit:'אֵל נְקָמוֹת ה׳, אֵל נְקָמוֹת הוֹפִיעַ',
+    theme:'היום יום רביעי בשבת, שבו היו הלוויים אומרים במקדש:' },
+  { day:'יום חמישי', chapter:81, hebrewChapter:'פ״א',
+    incipit:'לַמְנַצֵּחַ עַל הַגִּתִּית לְאָסָף: הַרְנִינוּ לֵאלֹהִים עוּזֵּנוּ',
+    theme:'היום יום חמישי בשבת, שבו היו הלוויים אומרים במקדש:' },
+  { day:'יום שישי', chapter:93, hebrewChapter:'צ״ג',
+    incipit:'ה׳ מָלָךְ גֵּאוּת לָבֵשׁ, לָבֵשׁ ה׳ עֹז הִתְאַזָּר',
+    theme:'היום יום שישי בשבת, שבו היו הלוויים אומרים במקדש:' },
+  { day:'שבת קודש', chapter:92, hebrewChapter:'צ״ב',
+    incipit:'מִזְמוֹר שִׁיר לְיוֹם הַשַּׁבָּת',
+    theme:'היום יום שבת קודש, שבו היו הלוויים אומרים במקדש:' },
+];
+
+function loadShirShelYom() {
+  const el = document.getElementById('shirShelYomContent');
+  if (!el) return;
+  const d = SHIR_SHEL_YOM[new Date().getDay()];
+  el.innerHTML =
+    `<div class="ssy-day">${esc(d.day)}</div>` +
+    `<div class="ssy-theme">${esc(d.theme)}</div>` +
+    `<div class="ssy-chapter">תהילים פרק ${esc(d.hebrewChapter)}</div>` +
+    `<div class="ssy-incipit">${esc(d.incipit)}...</div>`;
+}

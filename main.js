@@ -396,10 +396,10 @@ function calcZmanim(lat, lon, candleMins = 18) {
   return {
     alot:          fmt(safe(() => z.alotHaShachar())),
     sunrise:       fmt(safe(() => z.sunrise())),
-    shmaMGA:       fmt(safe(() => z.sofZmanShma(false))),
-    shmaGRA:       fmt(safe(() => z.sofZmanShma(true))),
-    tefilaMGA:     fmt(safe(() => z.sofZmanTfilla(false))),
-    tefilaGRA:     fmt(safe(() => z.sofZmanTfilla(true))),
+    shmaMGA:       fmt(safe(() => z.sofZmanShmaMGA())),
+    shmaGRA:       fmt(safe(() => z.sofZmanShma())),
+    tefilaMGA:     fmt(safe(() => z.sofZmanTfillaMGA())),
+    tefilaGRA:     fmt(safe(() => z.sofZmanTfilla())),
     chatzot:       fmt(safe(() => z.chatzot())),
     minchaGedola:  fmt(safe(() => z.minchaGedola())),
     minchaKetana:  fmt(safe(() => z.minchaKetana())),
@@ -425,7 +425,18 @@ function toHebrewDay(n) {
 // ===== WINDOWS =====
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
-  app.quit();
+  app.whenReady().then(() => {
+    const { dialog } = require('electron');
+    dialog.showMessageBoxSync({
+      type: 'info',
+      title: 'ווידג\'טים',
+      message: 'התוכנה כבר פתוחה.',
+      detail: 'ניתן למצוא אותה בשורת המשימות או ליד שעון המערכת.',
+      buttons: ['אישור'],
+      noLink: true,
+    });
+    app.quit();
+  });
 } else {
   app.on('second-instance', () => {
     if (panelWindow) {
@@ -577,14 +588,19 @@ setInterval(() => {
 function showPanel(side='left') {
   if (!panelWindow) return;
   const workArea = getLauncherWorkArea();
-  const bounds = panelWindow.getBounds();
-  const x = side==='right' ? workArea.x+workArea.width-bounds.width : workArea.x;
-  const y = workArea.y + Math.floor((workArea.height - bounds.height) / 2);
+  const curBounds = panelWindow.getBounds();
+  // Fill the entire work-area height of the display the launcher is on,
+  // so the panel stretches across taller monitors instead of staying at
+  // the primary-display height (which was previously capped at 920).
+  const height = workArea.height;
+  const width  = Math.min(curBounds.width, workArea.width);
+  const x = side==='right' ? workArea.x+workArea.width-width : workArea.x;
+  const y = workArea.y;
   if (panelBlurTimer) {
     clearTimeout(panelBlurTimer);
     panelBlurTimer = null;
   }
-  panelWindow.setPosition(x, y);
+  panelWindow.setBounds({ x, y, width, height });
   panelWindow.setAlwaysOnTop(true, 'screen-saver');
   panelWindow.show();
   panelWindow.moveTop();
@@ -750,10 +766,14 @@ ipcMain.on('set-launcher-side', (_, side) => {
 ipcMain.on('resize-panel', (_, width) => {
   if (!panelWindow) return;
   const workArea = getLauncherWorkArea();
-  const h = panelWindow.getBounds().height; // keep existing height
-  const x = currentSide === 'right' ? workArea.x + workArea.width - width : workArea.x;
-  const y = workArea.y + Math.floor((workArea.height - h) / 2);
-  panelWindow.setBounds({ x, y, width, height: h });
+  // Recompute height from the display the panel is currently on so it
+  // fills taller/shorter monitors correctly, instead of being locked to
+  // the primary display's height at startup.
+  const h = workArea.height;
+  const w = Math.min(width, workArea.width);
+  const x = currentSide === 'right' ? workArea.x + workArea.width - w : workArea.x;
+  const y = workArea.y;
+  panelWindow.setBounds({ x, y, width: w, height: h });
 });
 
 ipcMain.on('show-launcher-menu', () => {
